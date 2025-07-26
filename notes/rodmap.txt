@@ -1,0 +1,17 @@
+    I. Introduction
+Ok, j'ai en tête, une application d'un Lecteur et Enregistreur Audio Multipiste, qui permettrait d'enregistrer une piste Audio en temps réel, pendant la lecture des autres pistes.
+
+Pour cela j'aurai besoin en gros, dans un premier temps de plusieurs parties ou classes:
+
+1. Une partie pour créer ou charger un son Wav,
+
+2. Une partie pour mixer en temps réel les pistes qui contiennent les sons,
+
+3. Un Player qui permet de gérer les pistes: de jouer/pause le player, Arrêter, Avancer, Reculer, Enregistrer une piste, Sélectionner une piste, Ajouter, Supprimer une Piste.
+
+
+4. Une Interface avec les Boutons et les raccourcis du Transport:
+
+Play / Pause: (Space), Stop: (v), Forward (b), Backward (w), GotoStart (<), GotoEnd (>), Record (r), Select Track: (Up/Down Arrow), avec les pistes audio dans une liste déroulante, Add Track: (t), Delete Track: (Del).
+
+
