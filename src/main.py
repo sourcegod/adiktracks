@@ -124,96 +124,99 @@ def main_curses(stdscr):
 
     # Boucle principale de l'application
     running = True
-    while running:
-        curses.beep()
-        """
-        # Mettre à jour la fenêtre d'infos
-        info_window.clear()
-        info_window.addstr(0, 0, "--- AdikTracks Player ---")
-        info_window.addstr(1, 0, f"Temps: {player.current_time_seconds:.2f}s / {player.total_duration_seconds:.2f}s")
-        info_window.addstr(2, 0, f"Statut: {'PLAYING' if player.is_playing else 'RECORDING' if player.is_recording else 'STOPPED'}")
-        
-        selected_track = player.get_selected_track()
-        info_window.addstr(3, 0, f"Piste sélectionnée: {selected_track.name if selected_track else 'Aucune'}")
-        info_window.refresh()
-        """
+    try: # Ajout d'un bloc try...finally
+        while running:
+            curses.beep()
+            """
+            # Mettre à jour la fenêtre d'infos
+            info_window.clear()
+            info_window.addstr(0, 0, "--- AdikTracks Player ---")
+            info_window.addstr(1, 0, f"Temps: {player.current_time_seconds:.2f}s / {player.total_duration_seconds:.2f}s")
+            info_window.addstr(2, 0, f"Statut: {'PLAYING' if player.is_playing else 'RECORDING' if player.is_recording else 'STOPPED'}")
+            
+            selected_track = player.get_selected_track()
+            info_window.addstr(3, 0, f"Piste sélectionnée: {selected_track.name if selected_track else 'Aucune'}")
+            info_window.refresh()
+            """
 
 
-        # Mettre à jour la fenêtre des pistes
-        track_window.clear()
-        track_window.addstr(0, 0, "Pistes:")
-        for i, track in enumerate(player.tracks):
-            prefix = "-> " if i == player.selected_track_idx else "   "
-            status = []
-            if track.is_muted: status.append("M")
-            if track.is_solo: status.append("S")
-            if track.is_armed_for_recording: status.append("REC")
-            status_str = f"[{' '.join(status)}]" if status else ""
+            # Mettre à jour la fenêtre des pistes
+            track_window.clear()
+            track_window.addstr(0, 0, "Pistes:")
+            for i, track in enumerate(player.tracks):
+                prefix = "-> " if i == player.selected_track_idx else "   "
+                status = []
+                if track.is_muted: status.append("M")
+                if track.is_solo: status.append("S")
+                if track.is_armed_for_recording: status.append("REC")
+                status_str = f"[{' '.join(status)}]" if status else ""
 
-            track_window.addstr(i + 1, 0, f"{prefix}{i+1}. {track.name} {status_str} (Vol:{track.volume:.1f} Pan:{track.pan:.1f})")
-        
-        """
-        # Afficher les raccourcis
-        track_window.addstr(len(player.tracks) + 2, 0, "Commandes:")
-        track_window.addstr(len(player.tracks) + 3, 0, "  Space: Play/Pause | V: Stop | R: Record | M: Mute | S: Solo")
-        track_window.addstr(len(player.tracks) + 4, 0, "  B: Fwd | W: Bwd | <: Start | >: End")
-        track_window.addstr(len(player.tracks) + 5, 0, "  Up/Down: Select Track | A: Add Track | D: Del Track | Q: Quit")
-        track_window.refresh()
-        """
+                track_window.addstr(i + 1, 0, f"{prefix}{i+1}. {track.name} {status_str} (Vol:{track.volume:.1f} Pan:{track.pan:.1f})")
+            
+            """
+            # Afficher les raccourcis
+            track_window.addstr(len(player.tracks) + 2, 0, "Commandes:")
+            track_window.addstr(len(player.tracks) + 3, 0, "  Space: Play/Pause | V: Stop | R: Record | M: Mute | S: Solo")
+            track_window.addstr(len(player.tracks) + 4, 0, "  B: Fwd | W: Bwd | <: Start | >: End")
+            track_window.addstr(len(player.tracks) + 5, 0, "  Up/Down: Select Track | A: Add Track | D: Del Track | Q: Quit")
+            track_window.refresh()
+            """
 
 
-        # Gestion des entrées utilisateur
-        c = stdscr.getch() # Non-blocking getch
-        if c != -1: # Si une touche a été pressée
-            if c == ord(' '): # Space: Play/Pause
-                if player.is_playing:
-                    player.pause()
-                else:
-                    player.play()
-            elif c == ord('v') or c == ord('V'): # V: Stop
-                player.stop()
-            elif c == ord('r') or c == ord('R'): # R: Record
-                player.record()
-            elif c == ord('b') or c == ord('B'): # B: Forward
-                player.forward()
-            elif c == ord('w') or c == ord('W'): # W: Backward
-                player.backward()
-            elif c == ord('<'): # <: Goto Start
-                player.goto_start()
-            elif c == ord('>'): # >: Goto End
-                player.goto_end()
-            elif c == curses.KEY_UP: # Up arrow: Select previous track
-                if player.selected_track_idx > 0:
-                    player.select_track(player.selected_track_idx - 1)
-            elif c == curses.KEY_DOWN: # Down arrow: Select next track
-                if player.selected_track_idx < len(player.tracks) - 1:
-                    player.select_track(player.selected_track_idx + 1)
-            elif c == ord('a') or c == ord('A'): # A: Add Track
-                player.add_track()
-            elif c == ord('d') or c == ord('D'): # D: Delete Track
-                if player.selected_track_idx != -1:
-                    player.delete_track(player.selected_track_idx)
-            elif c == ord('m') or c == ord('M'): # M: Mute selected track
-                if selected_track:
-                    selected_track.is_muted = not selected_track.is_muted
-                    print(f"Piste '{selected_track.name}' muette: {selected_track.is_muted}")
-            elif c == ord('s') or c == ord('S'): # S: Solo selected track
-                if selected_track:
-                    selected_track.is_solo = not selected_track.is_solo
-                    # Logique pour désactiver les autres solos si on active un nouveau solo
-                    if selected_track.is_solo:
-                        for track in player.tracks:
-                            if track != selected_track and track.is_solo:
-                                track.is_solo = False
-                    print(f"Piste '{selected_track.name}' solo: {selected_track.is_solo}")
-            elif c == ord('q') or c == ord('Q'): # Q: Quit
-                running = False
+            # Gestion des entrées utilisateur
+            c = stdscr.getch() # Non-blocking getch
+            if c != -1: # Si une touche a été pressée
+                if c == ord(' '): # Space: Play/Pause
+                    if player.is_playing:
+                        player.pause()
+                    else:
+                        player.play()
+                elif c == ord('v') or c == ord('V'): # V: Stop
+                    player.stop()
+                elif c == ord('r') or c == ord('R'): # R: Record
+                    player.record()
+                elif c == ord('b') or c == ord('B'): # B: Forward
+                    player.forward()
+                elif c == ord('w') or c == ord('W'): # W: Backward
+                    player.backward()
+                elif c == ord('<'): # <: Goto Start
+                    player.goto_start()
+                elif c == ord('>'): # >: Goto End
+                    player.goto_end()
+                elif c == curses.KEY_UP: # Up arrow: Select previous track
+                    if player.selected_track_idx > 0:
+                        player.select_track(player.selected_track_idx - 1)
+                elif c == curses.KEY_DOWN: # Down arrow: Select next track
+                    if player.selected_track_idx < len(player.tracks) - 1:
+                        player.select_track(player.selected_track_idx + 1)
+                elif c == ord('a') or c == ord('A'): # A: Add Track
+                    player.add_track()
+                elif c == ord('d') or c == ord('D'): # D: Delete Track
+                    if player.selected_track_idx != -1:
+                        player.delete_track(player.selected_track_idx)
+                elif c == ord('m') or c == ord('M'): # M: Mute selected track
+                    if selected_track:
+                        selected_track.is_muted = not selected_track.is_muted
+                        print(f"Piste '{selected_track.name}' muette: {selected_track.is_muted}")
+                elif c == ord('s') or c == ord('S'): # S: Solo selected track
+                    if selected_track:
+                        selected_track.is_solo = not selected_track.is_solo
+                        # Logique pour désactiver les autres solos si on active un nouveau solo
+                        if selected_track.is_solo:
+                            for track in player.tracks:
+                                if track != selected_track and track.is_solo:
+                                    track.is_solo = False
+                        print(f"Piste '{selected_track.name}' solo: {selected_track.is_solo}")
+                elif c == ord('q') or c == ord('Q'): # Q: Quit
+                    running = False
 
-        time.sleep(0.01) # Petite pause pour ne pas surcharger le CPU
+            time.sleep(0.01) # Petite pause pour ne pas surcharger le CPU
 
-    # Nettoyage
-    player.stop() # Assurez-vous que le stream est arrêté à la sortie
-    print("Application terminée.")
+    finally: # Ce bloc garantit que le code ici est toujours exécuté
+        player.stop() # Assurez-vous que le stream est arrêté à la sortie
+        # Ajout d'un court délai pour permettre au stream de se fermer proprement
+        time.sleep(0.1) 
+        print("Application terminée.")
 
 #----------------------------------------
 
