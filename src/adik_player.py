@@ -192,46 +192,60 @@ class AdikPlayer:
     #     self.is_recording = True
     #     self.play() 
 
+    # --- Fonctions de positionnement ---
+    def _get_max_frames(self):
+        """
+        Calcule et retourne la durée maximale en frames parmi toutes les pistes chargées.
+        """
+        max_frames = 0
+        for track in self.tracks:
+            if track.audio_sound:
+                max_frames = max(max_frames, len(track.audio_sound.audio_data) // track.audio_sound.num_channels)
+        return max_frames
 
-    def forward(self, frames_to_skip=44100): # Par défaut, 1 seconde d'avance
+    def set_position(self, frames):
+        """
+        Définit la position de lecture globale du player et de toutes les pistes.
+        La position est clamper entre 0 et la durée maximale du projet.
+        """
         with self._lock:
-            max_frames = 0
-            for track in self.tracks:
-                if track.audio_sound:
-                    max_frames = max(max_frames, len(track.audio_sound.audio_data) // track.audio_sound.num_channels)
+            max_frames = self._get_max_frames() # Utilise la nouvelle fonction
             
-            self.current_playback_frame = min(max_frames, self.current_playback_frame + frames_to_skip)
-            for track in self.tracks:
-                track.playback_position = self.current_playback_frame
-            print(f"Avance rapide à la position: {self.current_playback_frame} frames")
+            new_position = max(0, min(max_frames, frames))
+            
+            if new_position == self.current_playback_frame:
+                return
 
-    def backward(self, frames_to_skip=44100): # Par défaut, 1 seconde de recul
-        with self._lock:
-            self.current_playback_frame = max(0, self.current_playback_frame - frames_to_skip)
+            self.current_playback_frame = new_position
             for track in self.tracks:
                 track.playback_position = self.current_playback_frame
-            print(f"Retour rapide à la position: {self.current_playback_frame} frames")
+            
+            print(f"Position de lecture définie à: {self.current_playback_frame} frames ({self.current_time_seconds:.2f}s)")
+
+    def get_position(self):
+        """
+        Retourne la position de lecture actuelle du player en frames.
+        """
+        with self._lock:
+            return self.current_playback_frame
+
+    def forward(self, frames_to_skip=44100): 
+        """Avance la position de lecture du player."""
+        self.set_position(self.get_position() + frames_to_skip) # Utilise get_position
+
+    def backward(self, frames_to_skip=44100): 
+        """Recule la position de lecture du player."""
+        self.set_position(self.get_position() - frames_to_skip) # Utilise get_position
 
     def goto_start(self):
-        with self._lock:
-            self.current_playback_frame = 0
-            for track in self.tracks:
-                track.reset_playback()
-            print("Retour au début.")
+        """Va au début du projet."""
+        self.set_position(0)
 
     def goto_end(self):
-        with self._lock:
-            max_frames = 0
-            for track in self.tracks:
-                if track.audio_sound:
-                    max_frames = max(max_frames, len(track.audio_sound.audio_data) // track.audio_sound.num_channels)
-            
-            self.current_playback_frame = max_frames # Aller à la fin de la piste la plus longue
-            for track in self.tracks:
-                track.playback_position = self.current_playback_frame
-            print("Aller à la fin.")
+        """Va à la fin du projet (fin de la piste la plus longue)."""
+        self.set_position(self._get_max_frames()) # Utilise la nouvelle fonction
 
-    # --- Gestion du Stream Audio (Interne au Player) ---
+
     # Gestion du stream de audio_engine
     def _start_engine(self):
         """Démarre l'engine audio."""
