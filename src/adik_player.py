@@ -7,7 +7,7 @@ from adik_track import AdikTrack
 from adik_sound import AdikSound
 from adik_mixer import AdikMixer
 from adik_wave_handler import AdikWaveHandler # Pour charger/sauvegarder sons
-import sounddevice as sd # Pour des infos de device
+from adik_audio_engine import AdikAudioEngine 
 
 class AdikPlayer:
     def __init__(self, sample_rate=44100, block_size=1024, num_channels=2):
@@ -22,7 +22,11 @@ class AdikPlayer:
         # self.is_recording = False # On retire l'enregistrement pour le moment
 
         self.mixer = AdikMixer(self.sample_rate, self.num_output_channels)
-        self.stream = None # Le stream sounddevice sera géré ici
+
+        # Instanciez l'Engine et définissez son callback
+        self.audio_engine = AdikAudioEngine(self.sample_rate, self.block_size, self.num_output_channels)
+        self.audio_engine.set_callback(self._audio_callback) # Le callback du player devient le callback de l'engine
+
 
         self._lock = threading.Lock() # Verrou pour protéger les accès concurrents
         
@@ -86,7 +90,8 @@ class AdikPlayer:
         print("Démarrage de la lecture...")
         with self._lock:
             self.is_playing = True
-            self._start_audio_stream()
+            # Appelle la méthode de l'engine pour démarrer le stream
+            self._start_engine()
 
     def pause(self):
         if not self.is_playing:
@@ -96,9 +101,46 @@ class AdikPlayer:
         print("Mise en pause.")
         with self._lock:
             self.is_playing = False
-            # Laisser le stream actif pour une reprise instantanée
 
     def stop(self):
+        if not self.is_playing and not self.audio_engine.is_stream_active(): # Vérifie l'état de l'engine
+            print("Déjà arrêté.")
+            return
+
+        print("Arrêt du player.")
+        with self._lock:
+            self.is_playing = False
+            self.current_playback_frame = 0
+            for track in self.tracks:
+                track.reset_playback() 
+                # track.is_armed_for_recording = False # Retiré car pas d'enregistrement
+
+            # Logique d'enregistrement est retirée pour le moment
+            # if self.is_recording and self.recording_sound and self.recording_buffer.size > 0:
+            #     print("Finalisation de l'enregistrement...")
+            #     self.recording_sound.audio_data = self.recording_buffer
+            #     selected_track = self.get_selected_track()
+            #     if selected_track:
+            #         selected_track.set_audio_sound(self.recording_sound)
+            #         save_path = f"/tmp/recorded_{selected_track.name}.wav"
+            #         AdikWaveHandler.save_wav(save_path, self.recording_sound)
+            #     else:
+            #         new_track = self.add_track(f"Recorded Track {len(self.tracks) + 1}")
+            #         new_track.set_audio_sound(self.recording_sound)
+            #         save_path = f"/tmp/recorded_new_track_{new_track.id}.wav"
+            #         AdikWaveHandler.save_wav(save_path, self.recording_sound)
+
+            #     self.recording_buffer = np.array([], dtype=np.float32)
+            #     self.recording_sound = None
+            # self.is_recording = False # Retiré car pas d'enregistrement
+
+
+            # Appelle la méthode de l'engine pour arrêter le stream
+            self._stop_engine()
+
+    """
+    def stop0(self):
+        # Deprecated function
         if not self.is_playing and not self.stream:
             print("Déjà arrêté.")
             return
@@ -131,6 +173,7 @@ class AdikPlayer:
             # self.is_recording = False # Retiré car pas d'enregistrement
 
             self._stop_audio_stream()
+    """
 
     # La fonction record est retirée pour le moment
     # def record(self):
@@ -189,35 +232,15 @@ class AdikPlayer:
             print("Aller à la fin.")
 
     # --- Gestion du Stream Audio (Interne au Player) ---
-    def _start_audio_stream(self):
-        if self.stream and self.stream.active:
-            print("Stream audio déjà actif.")
-            return
+    # Gestion du stream de audio_engine
+    def _start_engine(self):
+        """Démarre l'engine audio."""
+        self.audio_engine.start_stream()
 
-        try:
-            # Stream en sortie seule (plus de logique d'enregistrement ici)
-            self.stream = sd.OutputStream(
-                samplerate=self.sample_rate,
-                blocksize=self.block_size,
-                channels=self.num_output_channels, # Un seul 'channels' ici
-                dtype='float32',
-                callback=self._audio_callback,
-            )
+    def _stop_engine(self):
+        """Arrête l'engine audio."""
+        self.audio_engine.stop_stream()
 
-            self.stream.start()
-            print("Stream audio démarré.")
-        except Exception as e:
-            print(f"Erreur lors du démarrage du stream audio: {e}. Assurez-vous que les périphériques sont disponibles.")
-            self.stream = None
-            self.is_playing = False
-            # self.is_recording = False # Retiré
-
-    def _stop_audio_stream(self):
-        if self.stream:
-            # self.stream.stop()
-            self.stream.close()
-            self.stream = None
-            print("Stream audio arrêté.")
 
     # Signature du callback modifiée: plus d'indata
     def _audio_callback(self, outdata, frames, time_info, status):
