@@ -20,7 +20,17 @@ from adik_track import AdikTrack
 from adik_player import AdikPlayer
 from adik_tui import MainWindow
 
+# --- fonctions de déboggage -- 
+def beep():
+    print("\a")
 
+#----------------------------------------
+
+def debug_msg(msg, bell=False):
+    print(msg)
+    if bell: beep()
+
+#----------------------------------------
 
 # --- Fonction de test existante ---
 def run_wav_file_tests():
@@ -117,16 +127,18 @@ def main_curses(stdscr):
             # ui.update_all()
             
             # Obtenir une entrée bloquante (attend l'appui sur une touche)
-            c = stdscr.getch() 
+            key = stdscr.getch() 
             
             # Gérer la touche pressée via le key_handler de l'interface utilisateur
-            running = ui.key_handler(c)
+            running = ui.key_handler(key)
 
             # Pas besoin de time.sleep ici car getch() est bloquant
             # L'interface utilisateur ne se met à jour que lorsqu'une touche est pressée.
             # Pour des mises à jour continues pendant la lecture, il faudrait un getch() non bloquant
             # et un thread de mise à jour de l'interface utilisateur séparé ou un petit timeout dans getch().
-
+        # End of while loop
+        beep()
+    
     finally: 
         player.stop() 
         print("Application terminée.")

@@ -59,9 +59,9 @@ class AdikPlayer:
     def select_track(self, track_idx):
         if 0 <= track_idx < len(self.tracks):
             self.selected_track_idx = track_idx
-            print(f"Piste sélectionnée: {self.tracks[self.selected_track_idx].name}")
+            # print(f"Piste sélectionnée: {self.tracks[self.selected_track_idx].name}")
             return True
-        print(f"Erreur: Index de piste invalide ({track_idx}) pour la sélection.")
+        # print(f"Erreur: Index de piste invalide ({track_idx}) pour la sélection.")
         return False
 
     def get_selected_track(self):
