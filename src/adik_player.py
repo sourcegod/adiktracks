@@ -35,6 +35,7 @@ class AdikPlayer:
         # self.recording_sound = None 
 
         print(f"AdikPlayer initialisé (SR: {self.sample_rate}, Block Size: {self.block_size}, Out Channels: {self.num_output_channels})")
+    #----------------------------------------
 
     # --- Gestion des Pistes ---
     def add_track(self, name=None):
@@ -43,6 +44,8 @@ class AdikPlayer:
         self.select_track(len(self.tracks) - 1) # Sélectionne la nouvelle piste par défaut
         print(f"Piste ajoutée: {track.name}")
         return track
+
+    #----------------------------------------
 
     def delete_track(self, track_idx):
         if 0 <= track_idx < len(self.tracks):
@@ -56,6 +59,8 @@ class AdikPlayer:
         print(f"Erreur: Index de piste invalide ({track_idx}) pour la suppression.")
         return False
 
+    #----------------------------------------
+
     def select_track(self, track_idx):
         if 0 <= track_idx < len(self.tracks):
             self.selected_track_idx = track_idx
@@ -63,6 +68,8 @@ class AdikPlayer:
             return True
         # print(f"Erreur: Index de piste invalide ({track_idx}) pour la sélection.")
         return False
+
+    #----------------------------------------
 
     def get_selected_track(self):
         if 0 <= self.selected_track_idx < len(self.tracks):
@@ -80,6 +87,8 @@ class AdikPlayer:
     #         print(f"Piste '{track.name}' armée pour enregistrement: {track.is_armed_for_recording}")
     #         return True
     #     return False
+    
+#----------------------------------------
 
     # --- Transport (Play/Pause/Stop) ---
     def play(self):
@@ -93,6 +102,8 @@ class AdikPlayer:
             # Appelle la méthode de l'engine pour démarrer le stream
             self._start_engine()
 
+    #----------------------------------------
+
     def pause(self):
         if not self.is_playing:
             print("Pas en lecture.")
@@ -101,6 +112,8 @@ class AdikPlayer:
         print("Mise en pause.")
         with self._lock:
             self.is_playing = False
+
+    #----------------------------------------
 
     def stop(self):
         if not self.is_playing and not self.audio_engine.is_stream_active(): # Vérifie l'état de l'engine
@@ -138,42 +151,7 @@ class AdikPlayer:
             # Appelle la méthode de l'engine pour arrêter le stream
             self._stop_engine()
 
-    """
-    def stop0(self):
-        # Deprecated function
-        if not self.is_playing and not self.stream:
-            print("Déjà arrêté.")
-            return
-
-        print("Arrêt du player.")
-        with self._lock:
-            self.is_playing = False
-            self.current_playback_frame = 0
-            for track in self.tracks:
-                track.reset_playback() # Réinitialise la position de chaque piste
-                # track.is_armed_for_recording = False # Retiré car pas d'enregistrement
-
-            # Logique d'enregistrement est retirée pour le moment
-            # if self.is_recording and self.recording_sound and self.recording_buffer.size > 0:
-            #     print("Finalisation de l'enregistrement...")
-            #     self.recording_sound.audio_data = self.recording_buffer
-            #     selected_track = self.get_selected_track()
-            #     if selected_track:
-            #         selected_track.set_audio_sound(self.recording_sound)
-            #         save_path = f"/tmp/recorded_{selected_track.name}.wav"
-            #         AdikWaveHandler.save_wav(save_path, self.recording_sound)
-            #     else:
-            #         new_track = self.add_track(f"Recorded Track {len(self.tracks) + 1}")
-            #         new_track.set_audio_sound(self.recording_sound)
-            #         save_path = f"/tmp/recorded_new_track_{new_track.id}.wav"
-            #         AdikWaveHandler.save_wav(save_path, self.recording_sound)
-
-            #     self.recording_buffer = np.array([], dtype=np.float32)
-            #     self.recording_sound = None
-            # self.is_recording = False # Retiré car pas d'enregistrement
-
-            self._stop_audio_stream()
-    """
+    #----------------------------------------
 
     # La fonction record est retirée pour le moment
     # def record(self):
@@ -191,6 +169,7 @@ class AdikPlayer:
     #     print("Démarrage de l'enregistrement...")
     #     self.is_recording = True
     #     self.play() 
+    #----------------------------------------
 
     # --- Fonctions de positionnement ---
     def _get_max_frames(self):
@@ -202,6 +181,8 @@ class AdikPlayer:
             if track.audio_sound:
                 max_frames = max(max_frames, len(track.audio_sound.audio_data) // track.audio_sound.num_channels)
         return max_frames
+
+    #----------------------------------------
 
     def set_position(self, frames):
         """
@@ -222,6 +203,8 @@ class AdikPlayer:
             
             print(f"Position de lecture définie à: {self.current_playback_frame} frames ({self.current_time_seconds:.2f}s)")
 
+    #----------------------------------------
+
     def get_position(self):
         """
         Retourne la position de lecture actuelle du player en frames.
@@ -229,21 +212,31 @@ class AdikPlayer:
         with self._lock:
             return self.current_playback_frame
 
+    #----------------------------------------
+
     def forward(self, frames_to_skip=44100): 
         """Avance la position de lecture du player."""
         self.set_position(self.get_position() + frames_to_skip) # Utilise get_position
+
+    #----------------------------------------
 
     def backward(self, frames_to_skip=44100): 
         """Recule la position de lecture du player."""
         self.set_position(self.get_position() - frames_to_skip) # Utilise get_position
 
+    #----------------------------------------
+
     def goto_start(self):
         """Va au début du projet."""
         self.set_position(0)
 
+    #----------------------------------------
+
     def goto_end(self):
         """Va à la fin du projet (fin de la piste la plus longue)."""
         self.set_position(self._get_max_frames()) # Utilise la nouvelle fonction
+
+    #----------------------------------------
 
 
     # Gestion du stream de audio_engine
@@ -251,9 +244,13 @@ class AdikPlayer:
         """Démarre l'engine audio."""
         self.audio_engine.start_stream()
 
+    #----------------------------------------
+
     def _stop_engine(self):
         """Arrête l'engine audio."""
         self.audio_engine.stop_stream()
+
+    #----------------------------------------
 
 
     # Signature du callback modifiée: plus d'indata
@@ -319,12 +316,16 @@ class AdikPlayer:
                 print("Toutes les pistes ont fini de jouer. Arrêt automatique.")
                 self.is_playing = False # Arrête le player
 
+    #----------------------------------------
+
     # --- Propriété pour l'affichage de la position ---
     @property
     def current_time_seconds(self):
         if self.sample_rate > 0:
             return self.current_playback_frame / self.sample_rate
         return 0.0
+
+    #----------------------------------------
 
     @property
     def total_duration_seconds(self):
@@ -336,4 +337,6 @@ class AdikPlayer:
         if self.sample_rate > 0:
             return max_frames / self.sample_rate
         return 0.0
+
+    #----------------------------------------
 

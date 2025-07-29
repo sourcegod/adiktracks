@@ -13,6 +13,8 @@ class AdikAudioEngine:
 
         print(f"AdikAudioEngine initialisé (SR: {self.sample_rate}, Block Size: {self.block_size}, Out Channels: {self.num_output_channels})")
 
+    #----------------------------------------
+
     def set_callback(self, callback_func):
         """
         Définit la fonction de rappel qui sera appelée par le stream audio.
@@ -22,6 +24,8 @@ class AdikAudioEngine:
             self._callback_function = callback_func
         else:
             raise ValueError("Le callback fourni n'est pas une fonction callable.")
+
+    #----------------------------------------
 
     def start_stream(self):
         """Démarre le stream audio."""
@@ -46,6 +50,7 @@ class AdikAudioEngine:
         except Exception as e:
             print(f"Engine: Erreur lors du démarrage du stream audio: {e}.")
             self.stream = None
+    #----------------------------------------
 
     def stop_stream(self):
         """Arrête et ferme le stream audio."""
@@ -53,8 +58,11 @@ class AdikAudioEngine:
             self.stream.close() # close() arrête et nettoie
             self.stream = None
             print("Engine: Stream audio arrêté.")
+    #----------------------------------------
 
     def is_stream_active(self):
         """Retourne True si le stream audio est actif."""
         return self.stream is not None and self.stream.active
+
+    #----------------------------------------
 

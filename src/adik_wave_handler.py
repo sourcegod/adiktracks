@@ -40,6 +40,8 @@ class AdikWaveHandler:
             print(f"Erreur lors du chargement de {file_path}: {e}")
             return None
 
+    #----------------------------------------
+
     @staticmethod
     def save_wav(file_path, adik_sound):
         if not isinstance(adik_sound, AdikSound) or adik_sound.audio_data.size == 0:
@@ -58,4 +60,6 @@ class AdikWaveHandler:
         except Exception as e:
             print(f"Erreur lors de la sauvegarde de {file_path}: {e}")
             return False
+
+    #----------------------------------------
 

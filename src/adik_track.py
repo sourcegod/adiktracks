@@ -25,6 +25,8 @@ class AdikTrack:
 
         print(f"AdikTrack '{self.name}' (ID: {self.id}) créé.")
 
+    #----------------------------------------
+
     def set_audio_sound(self, adik_sound):
         """Associe un AdikSound à cette piste."""
         if not isinstance(adik_sound, AdikSound):
@@ -36,6 +38,8 @@ class AdikTrack:
         # Mais le num_channels de la piste représente sa sortie finale avant mixage.
         print(f"Son '{adik_sound.name}' assigné à la piste '{self.name}'.")
         return True
+
+    #----------------------------------------
 
     def get_audio_block(self, num_frames_to_generate):
         """
@@ -156,10 +160,14 @@ class AdikTrack:
         
         return output_block
 
+    #----------------------------------------
+
     def reset_playback(self):
         """Réinitialise la position de lecture de la piste au début."""
         self.playback_position = 0
         print(f"Piste '{self.name}' réinitialisée.")
+
+    #----------------------------------------
 
     def __str__(self):
         status = []
@@ -172,4 +180,6 @@ class AdikTrack:
         return (f"AdikTrack(ID={self.id}, Name='{self.name}', Sound={sound_info}, "
                 f"Vol={self.volume:.2f}, Pan={self.pan:.2f}, Pos={self.playback_position}, "
                 f"Status={status_str})")
+
+    #----------------------------------------
 
