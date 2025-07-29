@@ -116,6 +116,7 @@ class AdikTrack:
                 processed_data = data_to_process[:expected_size]
 
 
+        # """
         # Appliquer volume et panoramique
         if self.volume != 1.0 or self.pan != 0.0:
             if self.num_channels == 2: # Seulement si la piste est stéréo
@@ -138,6 +139,8 @@ class AdikTrack:
                 processed_data = reshaped_data.flatten() # Revenir à 1D
             else: # Mono channel
                 processed_data *= self.volume
+        # """
+
 
         # Copier les données traitées dans le buffer de sortie
         # Assurez-vous que la taille correspond avant de copier

@@ -84,11 +84,54 @@ def main_curses(stdscr):
 
     player = AdikPlayer(sample_rate, block_size, num_output_channels)
 
+     # Initialiser la classe MainWindow pour l'interface utilisateur Curses
+    ui = MainWindow(stdscr, player)
+    ui.display_status("Application démarrée. Appuyez sur '?' pour les commandes.") # Message de statut initial
+
+   
+    """
     # Créer quelques pistes et charger des sons
     track1 = player.add_track("Batterie")
     track2 = player.add_track("Basse")
     track3 = player.add_track("Synthé")
+    """
 
+    # Créer quelques pistes et charger des sons
+    track1 = player.add_track("Drums")
+    track2 = player.add_track("Basse")
+    track3 = player.add_track("Synthé")
+    track4 = player.add_track("Bruit Blanc") # Nouvelle piste
+
+    # --- Utilisation des nouvelles fonctions de génération ---
+
+    # Onde sinusoïdale pour la piste 1
+    sine_sound = AdikSound.sine_wave(freq=440, dur=3, amp=0.2, sample_rate=sample_rate, num_channels=num_output_channels)
+    track1.set_audio_sound(sine_sound)
+    ui.display_status(f"Piste 'Batterie' chargée avec une onde sinus de {sine_sound.name}")
+
+    # Onde carrée pour la piste 2 (synthé)
+    square_sound = AdikSound.square_wave(freq=220, dur=2, amp=0.1, sample_rate=sample_rate, num_channels=1, duty_cycle=0.6)
+    track2.set_audio_sound(square_sound)
+    ui.display_status(f"Piste 'Synthé' chargée avec une onde carrée de {square_sound.name}")
+
+    # Bruit blanc pour la nouvelle piste 4
+    noise_sound = AdikSound.white_noise(dur=5, amp=0.1, sample_rate=sample_rate, num_channels=1)
+    track3.set_audio_sound(noise_sound)
+    ui.display_status(f"Piste 'Bruit Blanc' chargée avec du {noise_sound.name}")
+    file_name1 = "/home/com/audiotest/rhodes.wav" 
+    if not os.path.exists(file_name1):
+        print(f"Erreur: le fichier ({file_name1}, n'existe pas")
+        return
+    loaded_sound = AdikWaveHandler.load_wav(file_name1)
+    if loaded_sound:
+        track4.set_audio_sound(loaded_sound)
+        track4.volume = 0.2
+    else:
+        print(f"Erreur: Impossible de charger '{file_name1}' pour les pistes.")
+        return # Quitter si le son ne peut pas être chargé
+
+    
+    """
     sine_wave_file = "/tmp/test_audio.wav" 
 
     if not os.path.exists(sine_wave_file):
@@ -114,10 +157,7 @@ def main_curses(stdscr):
     else:
         print(f"Erreur: Impossible de charger '{sine_wave_file}' pour les pistes.")
         return # Quitter si le son ne peut pas être chargé
-
-    # Initialiser la classe MainWindow pour l'interface utilisateur Curses
-    ui = MainWindow(stdscr, player)
-    ui.display_status("Application démarrée. Appuyez sur '?' pour les commandes.") # Message de statut initial
+        """
 
     # Boucle principale de l'application
     running = True
