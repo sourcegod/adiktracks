@@ -220,13 +220,7 @@ class MainWindow:
                 self.display_status(f"Piste '{track_name}' supprimée.")
             else:
                 self.display_status("Aucune piste sélectionnée à supprimer.")
-        elif key == ord('m') or key == ord('M'): # M: Mute la piste sélectionnée
-            if selected_track:
-                selected_track.is_muted = not selected_track.is_muted
-                self.display_status(f"Piste '{selected_track.name}' Muette: {selected_track.is_muted}")
-            else:
-                self.display_status("Aucune piste sélectionnée.")
-        elif key == ord('s') or key == ord('S'): # S: Solo la piste sélectionnée
+        elif key == ord('s'): # s: Solo la piste sélectionnée
             if selected_track:
                 selected_track.is_solo = not selected_track.is_solo
                 if selected_track.is_solo:
@@ -236,6 +230,13 @@ class MainWindow:
                 self.display_status(f"Piste '{selected_track.name}' Solo: {selected_track.is_solo}")
             else:
                 self.display_status("Aucune piste sélectionnée.")
+        elif key == ord('x'): # x: Mute la piste sélectionnée
+            if selected_track:
+                selected_track.is_muted = not selected_track.is_muted
+                self.display_status(f"Piste '{selected_track.name}' Muette: {selected_track.is_muted}")
+            else:
+                self.display_status("Aucune piste sélectionnée.")
+
         elif key == ord('+') or key == ord('='): # +: Augmenter Volume
             if selected_track:
                 selected_track.volume = min(1.0, selected_track.volume + 0.1)
