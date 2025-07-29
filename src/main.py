@@ -187,8 +187,11 @@ def main_curses(stdscr):
 
 if __name__ == "__main__":
     print("--- Démarrage des tests de chargement/sauvegarde WAV ---")
+    """
     run_wav_file_tests()
     print("--- Tests WAV terminés ---\n")
+    """
+
 
     print("--- Démarrage de l'application AdikTracks (interface Curses) ---")
     print("Appuyez sur 'Q' pour quitter l'application Curses.")

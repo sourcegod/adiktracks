@@ -172,18 +172,15 @@ class MainWindow:
             if self.player.is_playing:
                 self.player.pause()
                 self.display_status("Lecteur en pause.")
+            elif self.player.is_recording:
+                self.player.stop_recording()
+                self.display_status("Enregistrement arrêté (par Espace).")
             else:
                 self.player.play()
                 self.display_status("Lecteur en lecture.")
         elif key == ord('v') or key == ord('V'): # V: Arrêt
             self.player.stop()
             self.display_status("Lecteur arrêté.")
-        # La fonctionnalité d'enregistrement sera ajoutée plus tard au AdikPlayer
-        elif key == ord('r') or key == ord('R'): # R: Enregistrement
-            # Il faudra ajouter une méthode record() au AdikPlayer
-            # et un attribut is_recording
-            # Pour l'instant, juste un placeholder
-            self.display_status("Enregistrement non implémenté pour le moment.")
         elif key == ord('b') or key == ord('B'): # B: Avance rapide
             self.player.forward()
             self.display_status(f"Avance rapide à {self.player.current_time_seconds:.2f}s.")
@@ -220,6 +217,14 @@ class MainWindow:
                 self.display_status(f"Piste '{track_name}' supprimée.")
             else:
                 self.display_status("Aucune piste sélectionnée à supprimer.")
+        elif key == ord('r') or key == ord('R'): # R: Enregistrement
+            if self.player.is_recording:
+                self.player.stop_recording()
+                self.display_status("Enregistrement arrêté.")
+            else:
+                self.player.start_recording()
+                self.display_status("Enregistrement démarré.")
+
         elif key == ord('s'): # s: Solo la piste sélectionnée
             if selected_track:
                 selected_track.is_solo = not selected_track.is_solo
@@ -236,6 +241,9 @@ class MainWindow:
                 self.display_status(f"Piste '{selected_track.name}' Muette: {selected_track.is_muted}")
             else:
                 self.display_status("Aucune piste sélectionnée.")
+        elif key == 23: # Ctrl+W: sauvegarder le fichier enregistré
+            self.player.save_recording()
+            self.display_status("Fichier Sauvegardé")
 
         elif key == ord('+') or key == ord('='): # +: Augmenter Volume
             if selected_track:
