@@ -166,6 +166,7 @@ class AdikPlayer:
             self.recording_buffer = np.array([], dtype=np.float32) # Effacer le buffer précédent
             print("Player: Enregistrement démarré.")
             self.recording_sound = None # Réinitialiser l'objet AdikSound
+            self.is_playing = True
 
     #----------------------------------------
 
@@ -364,18 +365,18 @@ class AdikPlayer:
             beep()
 
         with self._lock:
-            # 1. Traitement de l'enregistrement
-            if self.is_recording and indata is not None and indata.size > 0:
-                # beep()
-                # Ajouter le buffer d'enregistrement indata à recording_buffer
-                # indata est de forme (frames, num_input_channels), on le flatten pour le buffer 1D entrelacé
-                # S'assurer que indata a le type float32 avant d'append
-                self.recording_buffer = np.append(self.recording_buffer, indata.astype(np.float32).flatten())
-
-            # 2. Traitement de la lecture
+            # 1. Traitement de la lecture
             if not self.is_playing:
                 outdata.fill(0.0) # Remplir de zéros si le player est en pause/arrêt
                 return
+            else:
+                # 2. Traitement de l'enregistrement
+                if self.is_recording and indata is not None and indata.size > 0:
+                    # beep()
+                    # Ajouter le buffer d'enregistrement indata à recording_buffer
+                    # indata est de forme (frames, num_input_channels), on le flatten pour le buffer 1D entrelacé
+                    # S'assurer que indata a le type float32 avant d'append
+                    self.recording_buffer = np.append(self.recording_buffer, indata.astype(np.float32).flatten())
 
             # Préparer la liste des buffers des pistes à mixer
             track_buffers = []
