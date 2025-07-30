@@ -167,8 +167,11 @@ class MainWindow:
         """
         running = True
         selected_track = self.player.get_selected_track()
+        if key == ord('Q'): # Q: Quitter
+            running = False
+            self.display_status("Fermeture de l'application...")
 
-        if key == ord(' '): # Espace: Lecture/Pause
+        elif key == ord(' '): # Espace: Lecture/Pause
             if self.player.is_playing:
                 self.player.pause()
                 self.display_status("Lecteur en pause.")
@@ -178,38 +181,12 @@ class MainWindow:
             else:
                 self.player.play()
                 self.display_status("Lecteur en lecture.")
-        elif key == ord('v') or key == ord('V'): # V: Arrêt
-            self.player.stop()
-            self.display_status("Lecteur arrêté.")
-        elif key == ord('b') or key == ord('B'): # B: Avance rapide
-            self.player.forward()
-            self.display_status(f"Avance rapide à {self.player.current_time_seconds:.2f}s.")
-        elif key == ord('w') or key == ord('W'): # W: Retour rapide
-            self.player.backward()
-            self.display_status(f"Retour rapide à {self.player.current_time_seconds:.2f}s.")
-        elif key == ord('<'): # <: Aller au début
-            self.player.goto_start()
-            self.display_status("Aller au début.")
-        elif key == ord('>'): # >: Aller à la fin
-            self.player.goto_end()
-            self.display_status("Aller à la fin.")
-        elif key == curses.KEY_UP: # Flèche haut: Sélectionner piste précédente
-            if self.player.selected_track_idx > 0:
-                self.player.select_track(self.player.selected_track_idx - 1)
-                self.display_status(f"Piste sélectionnée: {self.player.get_selected_track().name}")
-            else:
-                curses.beep()
-                self.display_status("Déjà à la première piste.")
-        elif key == curses.KEY_DOWN: # Flèche bas: Sélectionner piste suivante
-            if self.player.selected_track_idx < len(self.player.tracks) - 1:
-                self.player.select_track(self.player.selected_track_idx + 1)
-                self.display_status(f"Piste sélectionnée: {self.player.get_selected_track().name}")
-            else:
-                self.display_status("Déjà à la dernière piste.")
-                curses.beep()
         elif key == ord('a') or key == ord('A'): # A: Ajouter Piste
             self.player.add_track()
             self.display_status("Nouvelle piste ajoutée.")
+        elif key == ord('b') or key == ord('B'): # B: Avance rapide
+            self.player.forward()
+            self.display_status(f"Avance rapide à {self.player.current_time_seconds:.2f}s.")
         elif key == ord('d') or key == ord('D'): # D: Supprimer Piste
             if selected_track:
                 track_name = selected_track.name
@@ -235,12 +212,24 @@ class MainWindow:
                 self.display_status(f"Piste '{selected_track.name}' Solo: {selected_track.is_solo}")
             else:
                 self.display_status("Aucune piste sélectionnée.")
+        elif key == ord('v') or key == ord('V'): # V: Arrêt
+            self.player.stop()
+            self.display_status("Lecteur arrêté.")
+        elif key == ord('w') or key == ord('W'): # W: Retour rapide
+            self.player.backward()
+            self.display_status(f"Retour rapide à {self.player.current_time_seconds:.2f}s.")
         elif key == ord('x'): # x: Mute la piste sélectionnée
             if selected_track:
                 selected_track.is_muted = not selected_track.is_muted
                 self.display_status(f"Piste '{selected_track.name}' Muette: {selected_track.is_muted}")
             else:
                 self.display_status("Aucune piste sélectionnée.")
+        elif key == ord('<'): # <: Aller au début
+            self.player.goto_start()
+            self.display_status("Aller au début.")
+        elif key == ord('>'): # >: Aller à la fin
+            self.player.goto_end()
+            self.display_status("Aller à la fin.")
         elif key == 23: # Ctrl+W: sauvegarder le fichier enregistré
             self.player.save_recording()
             self.display_status("Fichier Sauvegardé")
@@ -269,12 +258,20 @@ class MainWindow:
                 self.display_status(f"Piste '{selected_track.name}' Panoramique: {selected_track.pan:.1f}")
             else:
                 self.display_status("Aucune piste sélectionnée.")
-        elif key == ord('c') or key == ord('C'): # C: Effacer les messages de statut
-            self.status_messages.clear()
-            self.display_status("Statut effacé.")
-        elif key == ord('Q'): # Q: Quitter
-            running = False
-            self.display_status("Fermeture de l'application...")
+        elif key == curses.KEY_UP: # Flèche haut: Sélectionner piste précédente
+            if self.player.selected_track_idx > 0:
+                self.player.select_track(self.player.selected_track_idx - 1)
+                self.display_status(f"Piste sélectionnée: {self.player.get_selected_track().name}")
+            else:
+                curses.beep()
+                self.display_status("Déjà à la première piste.")
+        elif key == curses.KEY_DOWN: # Flèche bas: Sélectionner piste suivante
+            if self.player.selected_track_idx < len(self.player.tracks) - 1:
+                self.player.select_track(self.player.selected_track_idx + 1)
+                self.display_status(f"Piste sélectionnée: {self.player.get_selected_track().name}")
+            else:
+                self.display_status("Déjà à la dernière piste.")
+                curses.beep()
         else:
             self.display_status(f"Touche '{chr(key)}' ({key}) non reconnue.")
             curses.beep()

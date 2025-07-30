@@ -9,6 +9,11 @@ from adik_mixer import AdikMixer
 from adik_wave_handler import AdikWaveHandler # Pour charger/sauvegarder sons
 from adik_audio_engine import AdikAudioEngine 
 
+def beep():
+    print("\a")
+
+#----------------------------------------
+
 class AdikPlayer:
     def __init__(self, sample_rate=44100, block_size=1024, num_output_channels=2, num_input_channels=1):
         self.sample_rate = sample_rate
@@ -123,13 +128,14 @@ class AdikPlayer:
         with self._lock:
             self.is_playing = False
             if self.is_recording: # Si on était en enregistrement, finaliser
+                self.is_recording = False
                 # self.finish_recording()
                 pass
 
     #----------------------------------------
 
     def stop(self):
-        if not self.is_playing and not self.audio_engine.is_stream_active(): # Vérifie l'état de l'engine
+        if not self.is_playing and not self._is_engine_running(): # Vérifie l'état de l'engine
             print("Déjà arrêté.")
             return
 
@@ -139,13 +145,14 @@ class AdikPlayer:
             self.is_playing = False
             # Si on était en enregistrement, finaliser avant de réinitialiser
             if self.is_recording:
+                self.is_recording = False
                 # self.finish_recording()
                 pass
 
         # Appelle la méthode de l'engine pour arrêter le stream
         # Seulement si rien d'autre ne tourne (pas de lecture, pas d'enregistrement)
-        if not self.is_playing and not self.is_recording and self.audio_engine.is_stream_active():
-            # self._stop_engine()
+        if not self.is_playing and not self.is_recording and self._is_engine_running():
+            self._stop_engine()
             pass
 
     #----------------------------------------
@@ -153,7 +160,7 @@ class AdikPlayer:
     # Méthodes pour l'enregistrement
     def start_recording(self):
         """Démarre l'enregistrement audio."""
-        if not self.audio_engine.is_stream_active():
+        if not self._is_engine_running():
             self._start_engine() # S'assurer que le stream est actif et configuré pour l'entrée
         
         with self._lock:
@@ -172,11 +179,12 @@ class AdikPlayer:
         
         print("Player: Arrêt de l'enregistrement.")
         with self._lock:
+            self.is_recording = False
             # self.finish_recording() # Appelle la nouvelle fonction de finalisation
             # Note: is_recording est mis à False dans finish_recording
             
             # Arrêter le stream seulement si plus rien n'est actif
-            if not self.is_playing and not self.is_recording and self.audio_engine.is_stream_active():
+            if not self.is_playing and not self.is_recording and self._is_engine_running():
                 self._stop_engine()
 
     #----------------------------------------
@@ -333,6 +341,13 @@ class AdikPlayer:
 
     #----------------------------------------
 
+    def _is_engine_running(self):
+        """Retourne si le moteur audio est actif"""
+        return self.audio_engine.is_stream_active()
+
+    #----------------------------------------
+
+
     def _audio_callback(self, indata, outdata, frames, time_info, status):
         """
         Le callback audio principal appelé par sounddevice.
@@ -340,10 +355,12 @@ class AdikPlayer:
         """
         if status:
             print(f"Status du callback audio: {status}", flush=True)
+            beep()
 
         with self._lock:
             # 1. Traitement de l'enregistrement
             if self.is_recording and indata is not None and indata.size > 0:
+                beep()
                 # indata est de forme (frames, num_input_channels), on le flatten pour le buffer 1D entrelacé
                 # S'assurer que indata a le type float32 avant d'append
                 self.recording_buffer = np.append(self.recording_buffer, indata.astype(np.float32).flatten())
