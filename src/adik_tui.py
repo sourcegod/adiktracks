@@ -231,8 +231,10 @@ class MainWindow:
             self.player.goto_end()
             self.display_status("Aller à la fin.")
         elif key == 23: # Ctrl+W: sauvegarder le fichier enregistré
-            self.player.save_recording()
-            self.display_status("Fichier Sauvegardé")
+            if self.player.save_recording():
+                self.display_status("Fichier Sauvegardé")
+            else:
+                self.display_status("Fichier non Sauvegardé")
 
         elif key == ord('+') or key == ord('='): # +: Augmenter Volume
             if selected_track:

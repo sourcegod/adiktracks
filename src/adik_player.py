@@ -180,6 +180,14 @@ class AdikPlayer:
         print("Player: Arrêt de l'enregistrement.")
         with self._lock:
             self.is_recording = False
+            # à déplacer dans finish_recording
+            self.recording_sound = AdikSound(
+                    name=f"rec_{time.strftime('%H%M%S')}",
+                    audio_data=self.recording_buffer,
+                    sample_rate=self.sample_rate,
+                    num_channels=self.num_input_channels # Les canaux de l'enregistrement sont les canaux d'entrée
+                )
+     
             # self.finish_recording() # Appelle la nouvelle fonction de finalisation
             # Note: is_recording est mis à False dans finish_recording
             
@@ -238,6 +246,7 @@ class AdikPlayer:
 
     def save_recording(self, filename=None):
         """Sauvegarde le son de l'enregistrement actuel ou le dernier enregistré dans un fichier WAV."""
+        saved = False
         if self.is_recording:
             print("Player: L'enregistrement est toujours actif. Veuillez l'arrêter d'abord pour le sauvegarder.")
             return
@@ -247,15 +256,18 @@ class AdikPlayer:
         if sound_to_save and sound_to_save.audio_data.size > 0:
             if filename is None:
                 # Utilise un nom de fichier par défaut basé sur le nom du son
-                filename = f"/tmp/{sound_to_save.name.replace(' ', '_').replace(':', '')}.wav"
+                filename = f"/tmp/{sound_to_save.name.replace(' ', '_').replace(':', '_')}.wav"
 
             if AdikWaveHandler.save_wav(filename, sound_to_save):
+                saved = True
                 print(f"Player: Enregistrement sauvegardé dans '{filename}'.")
             else:
                 print(f"Player: Échec de la sauvegarde de l'enregistrement dans '{filename}'.")
         else:
             print("Player: Aucun enregistrement finalisé ou le buffer est vide. Rien à sauvegarder.")
             print("Astuce: Appuyez sur 'R' pour démarrer l'enregistrement, puis 'R' ou 'Espace' ou 'V' pour le finaliser avant de sauvegarder.")
+        
+        return saved
 
     #----------------------------------------
 
@@ -361,6 +373,7 @@ class AdikPlayer:
             # 1. Traitement de l'enregistrement
             if self.is_recording and indata is not None and indata.size > 0:
                 beep()
+                # Ajouter le buffer d'enregistrement indata à recording_buffer
                 # indata est de forme (frames, num_input_channels), on le flatten pour le buffer 1D entrelacé
                 # S'assurer que indata a le type float32 avant d'append
                 self.recording_buffer = np.append(self.recording_buffer, indata.astype(np.float32).flatten())
@@ -373,6 +386,7 @@ class AdikPlayer:
             # Préparer la liste des buffers des pistes à mixer
             track_buffers = []
             
+            # Tester s'il y a une piste qui est en solo
             solo_active = any(track.is_solo for track in self.tracks)
 
             for track in self.tracks:
@@ -415,6 +429,7 @@ class AdikPlayer:
                 print("Player: Toutes les pistes ont fini de jouer. Arrêt automatique.")
                 self.is_playing = False # Arrête le player
                 # On ne stop_stream pas ici. Géré par stop() ou stop_recording() si nécessaire.
+    
     #----------------------------------------
 
 
