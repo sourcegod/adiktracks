@@ -208,6 +208,159 @@ class AdikTrack:
 
     #----------------------------------------
 
+    def _convert_channels(self, data, source_channels, target_channels, num_frames):
+        """
+        Convertit un bloc audio d'un nombre de canaux à un autre.
+        `num_frames` est la longueur du bloc audio en frames (non en samples).
+        """
+        if source_channels == target_channels:
+            # S'assurer que le padding est appliqué si data est plus court que prévu
+            expected_size = num_frames * target_channels
+            if data.size < expected_size:
+                return np.pad(data, (0, expected_size - data.size), 'constant')
+            return data
+        
+        if source_channels == 1 and target_channels == 2:
+            # Mono vers Stéréo
+            processed_data = np.empty(num_frames * 2, dtype=np.float32)
+            
+            # Assurez-vous d'avoir assez de données mono pour les frames demandées
+            data_mono_padded = np.pad(data, (0, num_frames - (data.size // source_channels)), 'constant')
+            
+            processed_data[0::2] = data_mono_padded # Canal gauche
+            processed_data[1::2] = data_mono_padded # Canal droit
+            return processed_data
+            
+        elif source_channels == 2 and target_channels == 1:
+            # Stéréo vers Mono (moyenne)
+            # Assurez-vous d'avoir assez de données stéréo pour les frames demandées
+            data_stereo_padded = np.pad(data, (0, num_frames * 2 - data.size), 'constant')
+            return np.mean(data_stereo_padded.reshape(-1, 2), axis=1)
+        
+        else:
+            print(f"Avertissement: Conversion de canaux non gérée: {source_channels} -> {target_channels}.")
+            # Fallback: retourner un bloc de zéros ou les données originales (peut causer des erreurs de taille)
+            return np.zeros(num_frames * target_channels, dtype=np.float32)
+
+    #----------------------------------------
+
+    def arrange_take(self, new_take_audio_data: np.ndarray, take_start_frame: int, take_end_frame: int):
+        """
+        Arrange une nouvelle prise (take) sur le son existant de la piste,
+        selon les règles de punch-in/out.
+        :param new_take_audio_data: Le buffer NumPy de la nouvelle prise.
+        :param take_start_frame: La position (en frames) où la prise a commencé sur la timeline globale.
+        :param take_end_frame: La position (en frames) où la prise s'est terminée sur la timeline globale.
+        """
+        if self.audio_sound is None:
+            # Cas simple : la piste est vide, la prise devient le son de la piste.
+            # L'offset de la piste est le début de la prise.
+            self.set_audio_sound(AdikSound(
+                name=f"{self.name}_take",
+                audio_data=new_take_audio_data,
+                sample_rate=self.sample_rate,
+                num_channels=self.num_channels # Assumons que la prise est déjà au bon nombre de canaux de la piste
+            ), offset_frames=take_start_frame)
+            print(f"Piste '{self.name}': Nouvelle prise ({len(new_take_audio_data)//self.num_channels} frames) ajoutée à une piste vide à l'offset {take_start_frame}.")
+            return
+
+        # Ancien son de la piste
+        old_sound_data = self.audio_sound.audio_data
+        old_sound_length_frames = self.audio_sound.get_length_frames()
+        old_sound_end_frame_global = self.offset_frames + old_sound_length_frames
+        
+        # Dimensions du nouveau take
+        take_length_frames = len(new_take_audio_data) // self.audio_sound.num_channels # Important: utiliser num_channels du son de la prise si différent, mais ici on suppose que c'est les mêmes que la piste
+                                                                                     # (le AdikPlayer.recording_sound est créé avec num_input_channels qui peut être différent de la piste)
+                                                                                     # Il faudra gérer la conversion si la prise n'a pas le même nombre de canaux que le son existant.
+        # Pour simplifier, on va supposer que new_take_audio_data est déjà formaté pour les self.num_channels de la piste.
+        # Sinon, il faudrait l'adapter ici en utilisant _convert_channels()
+        
+        # Calculer la longueur finale potentielle de la piste après la prise
+        new_total_length_frames = max(old_sound_end_frame_global, take_end_frame) - min(self.offset_frames, take_start_frame)
+        
+        # Le nouveau buffer qui contiendra le son fusionné
+        new_buffer = np.zeros(new_total_length_frames * self.num_channels, dtype=np.float32)
+
+        # Décalage de l'ancien son par rapport au début potentiel du nouveau buffer
+        old_sound_relative_start = self.offset_frames - min(self.offset_frames, take_start_frame)
+        
+        # Décalage de la nouvelle prise par rapport au début potentiel du nouveau buffer
+        take_relative_start = take_start_frame - min(self.offset_frames, take_start_frame)
+
+        # 1. Copier le début de l'ancien son (avant le point d'insertion de la prise)
+        # S'assurer de ne pas dépasser le début de la prise
+        frames_before_take = min(old_sound_length_frames, take_start_frame - self.offset_frames)
+        if frames_before_take > 0:
+            # Assurez-vous de copier seulement la partie pertinente de l'ancien son
+            segment_start_old_sound = 0
+            segment_end_old_sound = int(frames_before_take * self.audio_sound.num_channels)
+            
+            # S'assurer que les canaux sont corrects pour le collage
+            old_data_before_take = self._convert_channels(
+                old_sound_data[segment_start_old_sound:segment_end_old_sound], 
+                self.audio_sound.num_channels, self.num_channels, frames_before_take
+            )
+            
+            dest_start_idx = int(old_sound_relative_start * self.num_channels)
+            dest_end_idx = dest_start_idx + old_data_before_take.size
+            new_buffer[dest_start_idx:dest_end_idx] = old_data_before_take
+            print(f"Copie ancien son (début): {frames_before_take} frames de {dest_start_idx} à {dest_end_idx}.")
+
+
+        # 2. Copier la nouvelle prise
+        # Assurez-vous que new_take_audio_data est déjà au bon nombre de canaux pour la piste
+        # Si AdikPlayer._finish_recording s'assure que recording_sound.num_channels est bien self.num_input_channels,
+        # et que num_input_channels peut être différent de self.num_channels de la piste,
+        # alors il faut convertir new_take_audio_data ici.
+        processed_new_take = self._convert_channels(new_take_audio_data, 
+                                                    self.audio_sound.num_channels, # Supposons que c'est les canaux du son source
+                                                    self.num_channels, 
+                                                    take_length_frames)
+
+        dest_start_idx = int(take_relative_start * self.num_channels)
+        dest_end_idx = dest_start_idx + processed_new_take.size
+        # S'assurer de ne pas écrire au-delà de la taille du nouveau buffer
+        new_buffer[dest_start_idx : min(dest_end_idx, new_buffer.size)] = processed_new_take[:min(processed_new_take.size, new_buffer.size - dest_start_idx)]
+        print(f"Copie nouvelle prise: {take_length_frames} frames de {dest_start_idx} à {dest_end_idx}.")
+
+
+        # 3. Copier la fin de l'ancien son (après le point de fin de la prise)
+        # Condition: take_end_frame doit être avant la fin de l'ancien son
+        if take_end_frame < old_sound_end_frame_global:
+            frames_after_take_in_old_sound = old_sound_end_frame_global - take_end_frame
+            if frames_after_take_in_old_sound > 0:
+                # Partir de la fin de la prise dans l'ancien son
+                segment_start_old_sound_frames = take_end_frame - self.offset_frames
+                
+                segment_start_old_sound = int(segment_start_old_sound_frames * self.audio_sound.num_channels)
+                segment_end_old_sound = int(old_sound_length_frames * self.audio_sound.num_channels)
+
+                old_data_after_take = self._convert_channels(
+                    old_sound_data[segment_start_old_sound:segment_end_old_sound], 
+                    self.audio_sound.num_channels, self.num_channels, frames_after_take_in_old_sound
+                )
+
+                dest_start_idx = int((take_relative_start + take_length_frames) * self.num_channels)
+                dest_end_idx = dest_start_idx + old_data_after_take.size
+                
+                # S'assurer de ne pas écrire au-delà de la taille du nouveau buffer
+                new_buffer[dest_start_idx : min(dest_end_idx, new_buffer.size)] = old_data_after_take[:min(old_data_after_take.size, new_buffer.size - dest_start_idx)]
+                print(f"Copie ancien son (fin): {frames_after_take_in_old_sound} frames de {dest_start_idx} à {dest_end_idx}.")
+
+        # Mettre à jour le AdikSound de la piste avec le nouveau buffer
+        self.set_audio_sound(AdikSound(
+            name=f"{self.name}_arranged_take",
+            audio_data=new_buffer,
+            sample_rate=self.sample_rate,
+            num_channels=self.num_channels
+        ), offset_frames=min(self.offset_frames, take_start_frame)) # Le nouvel offset est le min des deux
+
+        print(f"Piste '{self.name}': Take arrangée. Nouvelle longueur: {self.audio_sound.get_length_frames()} frames, nouvel offset: {self.offset_frames}.")
+
+
+    #----------------------------------------
+
     def reset_playback_position(self):
         # Réinitialise à l'offset, pas à 0
         self.playback_position = self.offset_frames
