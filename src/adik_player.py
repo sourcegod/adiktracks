@@ -34,6 +34,8 @@ class AdikPlayer:
         self.is_recording = False # Retirer le commentaire pour que l'enregistrement soit fonctionnel
         self.recording_buffer = np.array([], dtype=np.float32) 
         self.recording_sound = None 
+        self.recording_start_frame = 0 # La frame où l'enregistrement a commencé
+
         # total_duration_seconds et current_time_seconds seront gérés comme des propriétés (voir plus bas)
         self.total_duration_seconds_cached = 0.0 # Cache pour la durée totale
         
@@ -92,7 +94,9 @@ class AdikPlayer:
         max_dur = 0.0
         for track in self.tracks:
             if track.audio_sound:
-                max_dur = max(max_dur, track.audio_sound.get_duration_seconds())
+                # La durée d'une piste est son contenu + son offset
+                end_frame = track.offset_frames + len(track.audio_sound.audio_data) // track.audio_sound.num_channels
+                max_dur = max(max_dur, end_frame / self.sample_rate)
         self.total_duration_seconds_cached = max_dur
 
     #----------------------------------------
@@ -155,7 +159,7 @@ class AdikPlayer:
 
     # --- Méthodes pour l'enregistrement ---
     def start_recording(self):
-        """Démarre l'enregistrement audio."""
+        """Démarre l'enregistrement audio à la position actuelle du player."""
         if self.is_recording:
             print("Player: Déjà en enregistrement. Appuyez sur 'R' de nouveau pour arrêter.")
             return
@@ -168,11 +172,17 @@ class AdikPlayer:
             self.is_recording = True
             self.recording_buffer = np.array([], dtype=np.float32) # Effacer le buffer précédent
             self.recording_sound = None # Réinitialiser l'objet AdikSound
-            self.current_playback_frame = 0 # Réinitialiser la position pour un nouvel enregistrement
-            for track in self.tracks:
-                track.reset_playback_position()
+            
+            # Stocker la position de début d'enregistrement
+            self.recording_start_frame = self.current_playback_frame 
+            
+            # Ne pas réinitialiser la position de lecture ici
+            # self.current_playback_frame = 0 
+            # for track in self.tracks:
+            #     track.reset_playback_position() 
+
             self.is_playing = True # Démarrer la lecture pour le monitoring pendant l'enregistrement
-            print("Player: Enregistrement démarré.")
+            print(f"Player: Enregistrement démarré à la frame {self.recording_start_frame}.")
 
     #----------------------------------------
 
@@ -192,9 +202,56 @@ class AdikPlayer:
                 self._stop_engine()
 
     #----------------------------------------
-
+    
     def _finish_recording(self):
         """
+        Finalise l'enregistrement en créant un AdikSound à partir du buffer
+        et l'assigne à la piste sélectionnée ou à une nouvelle piste,
+        en respectant la position de début d'enregistrement.
+        Doit être appelée sous le _lock.
+        """
+        if not self.is_recording:
+            print("Player: Aucune session d'enregistrement active à finaliser (interne).")
+            return
+
+        print("Player: Finalisation de l'enregistrement...")
+        self.is_recording = False # Mettre fin à l'état d'enregistrement immédiatement
+
+        if self.recording_buffer.size > 0:
+            self.recording_sound = AdikSound(
+                name=f"adik_rec_{time.strftime('%Y%m%d_%H%M%S')}",
+                audio_data=self.recording_buffer,
+                sample_rate=self.sample_rate,
+                num_channels=self.num_input_channels # Les canaux de l'enregistrement sont les canaux d'entrée
+            )
+            
+            selected_track = self.get_selected_track()
+            if selected_track:
+                # Assigner le son enregistré à la piste sélectionnée
+                # Le son est placé à l'offset de la frame de début d'enregistrement
+                selected_track.set_audio_sound(self.recording_sound, offset_frames=self.recording_start_frame)
+                print(f"Player: Enregistrement assigné à la piste '{selected_track.name}' à la frame {self.recording_start_frame}.")
+            else:
+                # Si aucune piste sélectionnée, créer une nouvelle piste
+                new_track_name = f"Piste Enregistrée {len(self.tracks) + 1}"
+                new_track = self.add_track(new_track_name) # add_track prend un lock
+                # Le son est placé à l'offset de la frame de début d'enregistrement
+                new_track.set_audio_sound(self.recording_sound, offset_frames=self.recording_start_frame)
+                print(f"Player: Enregistrement ajouté à une nouvelle piste '{new_track.name}' à la frame {self.recording_start_frame}.")
+            
+            self._update_total_duration_cache() # Mettre à jour la durée totale du projet
+            self.recording_buffer = np.array([], dtype=np.float32) # Vider le buffer après utilisation
+        else:
+            print("Player: Le buffer d'enregistrement est vide. Rien à finaliser.")
+        
+        print("Player: Enregistrement finalisé.")
+
+    #----------------------------------------
+
+    '''
+    def _finish_recording_old(self):
+        """
+        Depracated function
         Finalise l'enregistrement en créant un AdikSound à partir du buffer
         et l'assigne à la piste sélectionnée ou à une nouvelle piste.
         Doit être appelée sous le _lock.
@@ -240,6 +297,8 @@ class AdikPlayer:
         print("Player: Enregistrement finalisé.")
 
     #----------------------------------------
+    '''
+
 
     def save_recording(self, filename=None):
         """Sauvegarde le son de l'enregistrement actuel ou le dernier enregistré dans un fichier WAV."""
@@ -410,11 +469,12 @@ class AdikPlayer:
             self.current_playback_frame += frames
             # Mise à jour de la variable cachée pour le property
             self.current_time_seconds_cached = self.current_playback_frame / self.sample_rate
-
+   
             # Optionnel: Arrêter le player si toutes les pistes ont fini de jouer
             all_tracks_finished = True
             for track in self.tracks:
-                if track.audio_sound and track.playback_position < (len(track.audio_sound.audio_data) // track.audio_sound.num_channels):
+                # Vérifier si la piste a encore des données à jouer *à partir de sa position actuelle*
+                if track.audio_sound and (track.playback_position - track.offset_frames) < (len(track.audio_sound.audio_data) // track.audio_sound.num_channels):
                     all_tracks_finished = False
                     break
                     
@@ -422,7 +482,7 @@ class AdikPlayer:
                 print("Player: Toutes les pistes ont fini de jouer. Arrêt automatique.")
                 self.is_playing = False # Arrête le player
                 # On ne stop_stream pas ici. Géré par stop() ou stop_recording() si nécessaire.
-    
+  
     #----------------------------------------
 
     # --- Propriétés pour l'affichage de la position et durée ---
