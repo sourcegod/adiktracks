@@ -162,12 +162,20 @@ class AdikTrack:
 
     #----------------------------------------
 
-    def reset_playback(self):
+    def reset_playback_position(self):
         """Réinitialise la position de lecture de la piste au début."""
         self.playback_position = 0
         print(f"Piste '{self.name}' réinitialisée.")
 
     #----------------------------------------
+
+    def set_playback_position(self, pos):
+        """Assigne une valeur la position de lecture de la piste."""
+        self.playback_position = pos
+        print(f"Piste '{self.name}' assignée.")
+
+    #----------------------------------------
+
 
     def __str__(self):
         status = []
