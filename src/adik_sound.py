@@ -61,7 +61,6 @@ class AdikSound:
 
     #----------------------------------------
 
-    #----------------------------------------
 
     def get_length_frames(self):
         """Retourne la longueur du son en frames (un frame = un sample pour chaque canal)."""
@@ -100,62 +99,42 @@ class AdikSound:
 
     #----------------------------------------
 
+    def new_audio_data(num_samples: int) -> np.ndarray:
+        """
+        Retourne un nouveau buffer audio NumPy rempli de zéros.
+        """
+        return np.zeros(num_samples, dtype=np.float32)
+
+    #----------------------------------------
+
+
     @staticmethod
-    def concat_audio_data(buffer1: np.ndarray, channels1: int,
-                          buffer2: np.ndarray, channels2: int) -> np.ndarray:
+    def concat_audio_data(buffer1: np.ndarray, buffer2: np.ndarray) -> np.ndarray:
         """
-        Concatène deux buffers audio NumPy. Gère la conversion de canaux si nécessaire.
-        Retourne un nouveau buffer concaténé. Les buffers d'entrée doivent être 1D.
-        Les buffers concaténés auront le nombre de canaux du buffer le plus grand.
-        Si les canaux sont différents, le buffer avec moins de canaux sera adapté.
+        Encapsule np.concatenate pour plus de lisibilité.
         """
-        if buffer1.dtype != np.float32 or buffer2.dtype != np.float32:
-            print("Avertissement: Les buffers de concaténation ne sont pas en float32.")
-            buffer1 = buffer1.astype(np.float32)
-            buffer2 = buffer2.astype(np.float32)
+        return np.concatenate((buffer1, buffer2))
 
-        if buffer1.ndim > 1 or buffer2.ndim > 1:
-            print("Erreur: Les buffers pour concat_audio_data doivent être 1D.")
-            raise ValueError("Les buffers pour concat_audio_data doivent être 1D.")
+    #----------------------------------------
 
-        # Déterminer le nombre de canaux de sortie
-        output_channels = max(channels1, channels2)
-
-        processed_buffer1 = buffer1
-        processed_buffer2 = buffer2
-
-        # Adapter buffer1 aux canaux de sortie
-        if channels1 != output_channels:
-            if channels1 == 1 and output_channels == 2:
-                # Mono vers Stéréo
-                processed_buffer1 = np.empty(buffer1.size * 2, dtype=np.float32)
-                processed_buffer1[0::2] = buffer1
-                processed_buffer1[1::2] = buffer1
-            elif channels1 == 2 and output_channels == 1:
-                # Stéréo vers Mono (moyenne)
-                processed_buffer1 = np.mean(buffer1.reshape(-1, 2), axis=1)
-            else:
-                print(f"Avertissement: Conversion de canaux non gérée pour buffer1 ({channels1} -> {output_channels}).")
-                # Fallback: utiliser tel quel, peut causer des erreurs de taille
-                pass 
+    @staticmethod
+    def merge_audio_data(buffer1: np.ndarray, buffer2: np.ndarray) -> np.ndarray:
+        """
+        Encapsule la fusion (addition) de deux buffers audio.
+        Assure que les buffers ont la même taille avant l'addition.
+        """
+        size1 = buffer1.size
+        size2 = buffer2.size
         
-        # Adapter buffer2 aux canaux de sortie
-        if channels2 != output_channels:
-            if channels2 == 1 and output_channels == 2:
-                # Mono vers Stéréo
-                processed_buffer2 = np.empty(buffer2.size * 2, dtype=np.float32)
-                processed_buffer2[0::2] = buffer2
-                processed_buffer2[1::2] = buffer2
-            elif channels2 == 2 and output_channels == 1:
-                # Stéréo vers Mono (moyenne)
-                processed_buffer2 = np.mean(buffer2.reshape(-1, 2), axis=1)
-            else:
-                print(f"Avertissement: Conversion de canaux non gérée pour buffer2 ({channels2} -> {output_channels}).")
-                # Fallback: utiliser tel quel, peut causer des erreurs de taille
-                pass
-
-        # Finalement, concaténer les buffers ajustés
-        return np.concatenate((processed_buffer1, processed_buffer2))
+        # Le buffer le plus court est complété par des zéros
+        if size1 > size2:
+            buffer2_padded = np.pad(buffer2, (0, size1 - size2), 'constant')
+            return buffer1 + buffer2_padded
+        elif size2 > size1:
+            buffer1_padded = np.pad(buffer1, (0, size2 - size1), 'constant')
+            return buffer1_padded + buffer2
+        else:
+            return buffer1 + buffer2
 
     #----------------------------------------
 
