@@ -55,151 +55,80 @@ class AdikTrack:
         output_block = np.zeros(num_frames_to_generate * self.num_channels, dtype=np.float32)
 
         if self.is_muted or self.audio_sound is None or self.audio_sound.audio_data.size == 0:
-            # Ne pas avancer self.playback_position si la piste est muette ou vide
+            # Avancer la position globale même si la piste est muette ou vide, pour ne pas bloquer le player
+            self.playback_position += num_frames_to_generate
             return output_block 
 
         # Calculer la position de lecture RELATIVE au début du son sur la timeline.
-        # Si le player est avant l'offset de la piste, nous retournons du silence.
-        current_frame_in_sound = self.playback_position - self.offset_frames
+        # Cette position est `global_player_position - track_offset`.
+        current_frame_in_sound_timeline = self.playback_position 
+        
+        # Position réelle dans les données brutes du son, en tenant compte de son offset
+        start_frame_in_sound_data = current_frame_in_sound_timeline - self.offset_frames
 
-        # Si nous n'avons pas encore atteint l'offset de la piste
-        if current_frame_in_sound < 0:
-            # Calculer combien de frames de silence sont nécessaires avant de commencer le son
-            frames_before_sound = abs(current_frame_in_sound)
+        # Si le début de ce bloc est avant l'offset du son sur la piste (silence avant le son)
+        if start_frame_in_sound_data < 0:
+            frames_of_silence_needed = abs(start_frame_in_sound_data)
             
-            # Combien de frames réelles du son nous devons lire dans ce bloc
-            frames_from_sound = num_frames_to_generate - frames_before_sound
-
-            # Si le bloc entier est avant le début du son, tout est silence
-            if frames_from_sound <= 0:
-                self.playback_position += num_frames_to_generate # Avancer la position globale
+            # Si tout le bloc est avant le son (pur silence)
+            if frames_of_silence_needed >= num_frames_to_generate:
+                self.playback_position += num_frames_to_generate
                 return output_block # Reste silencieux
 
-            # Si une partie du bloc est du silence et l'autre est du son
-            # Récupérer la partie du son nécessaire (start_frame_source est 0 ici pour le son)
-            start_sample_idx_in_sound = 0
-            end_sample_idx_in_sound = frames_from_sound * self.audio_sound.num_channels
-
-            data_from_sound = self.audio_sound.audio_data[start_sample_idx_in_sound : end_sample_idx_in_sound].copy()
+            # Une partie est silence, une partie est son
+            silence_samples = np.zeros(frames_of_silence_needed * self.num_channels, dtype=np.float32)
             
-            # Padder le début avec des zéros (silence)
-            # Assurez-vous que data_from_sound a le bon nombre de canaux pour le padding
-            if self.audio_sound.num_channels == 1 and self.num_channels == 2:
-                # Si mono source -> stéréo piste, le son doit être dupliqué en stéréo avant padding
-                temp_data = np.empty(frames_from_sound * 2, dtype=np.float32)
-                temp_data[0::2] = data_from_sound
-                temp_data[1::2] = data_from_sound
-                data_to_process = temp_data
-            elif self.audio_sound.num_channels == 2 and self.num_channels == 1:
-                # Si stéréo source -> mono piste, le son doit être mixé en mono avant padding
-                data_to_process = np.mean(data_from_sound.reshape(-1, 2), axis=1)
-                # Puis si la piste est stéréo (ce qui ne devrait pas arriver ici pour une piste mono), dupliquer.
-                # Mais si self.num_channels == 1, ça reste mono.
-            else:
-                data_to_process = data_from_sound
-
-            # Le bloc de sortie commence par du silence, puis le son
-            silence_padding = np.zeros(int(frames_before_sound * self.num_channels), dtype=np.float32)
-            processed_data = np.concatenate((silence_padding, data_to_process))
+            # Le reste du bloc doit être lu à partir du début du son (frame 0 du son)
+            frames_to_read_from_sound = num_frames_to_generate - frames_of_silence_needed
             
-            # Assurez-vous que la taille correspond au num_frames_to_generate * self.num_channels
-            processed_data = processed_data[:num_frames_to_generate * self.num_channels]
+            sound_data_part = self.audio_sound.audio_data[0 : int(frames_to_read_from_sound * self.audio_sound.num_channels)].copy()
+            
+            # Gérer la conversion de canaux pour la partie du son
+            processed_sound_part = self._convert_channels(sound_data_part, self.audio_sound.num_channels, self.num_channels, frames_to_read_from_sound)
 
-        else: # Nous sommes déjà dans le son ou au-delà de l'offset
-            # Position de départ et de fin en frames pour le son source
-            start_frame_source = current_frame_in_sound
-            end_frame_source = start_frame_source + num_frames_to_generate
+            # Compléter la partie son si elle est trop courte (fin du son atteinte)
+            if processed_sound_part.size < frames_to_read_from_sound * self.num_channels:
+                processed_sound_part = np.pad(processed_sound_part, (0, frames_to_read_from_sound * self.num_channels - processed_sound_part.size), 'constant')
 
+            # Concaténer le silence et le son
+            block_content = np.concatenate((silence_samples, processed_sound_part))
+            
+            # Assurez-vous que la taille correspondante est correcte (truncature si excès dû aux calculs)
+            output_block[:] = block_content[:output_block.size]
+
+        else: # Nous sommes dans la section du son ou au-delà de sa fin
             # Calculer les index de samples dans le buffer 1D de AdikSound
-            source_channels = self.audio_sound.num_channels
+            start_sample_idx = int(start_frame_in_sound_data * self.audio_sound.num_channels)
+            end_sample_idx = int((start_frame_in_sound_data + num_frames_to_generate) * self.audio_sound.num_channels)
             
-            start_sample_idx = int(start_frame_source * source_channels)
-            end_sample_idx = int(end_frame_source * source_channels)
+            # Prendre les données audio disponibles
+            data_raw = self.audio_sound.audio_data[start_sample_idx : end_sample_idx].copy()
+
+            # Gérer la conversion de canaux
+            processed_data = self._convert_channels(data_raw, self.audio_sound.num_channels, self.num_channels, num_frames_to_generate)
+
+            # Compléter avec des zéros si la fin du son est atteinte
+            if processed_data.size < num_frames_to_generate * self.num_channels:
+                padding_size = num_frames_to_generate * self.num_channels - processed_data.size
+                processed_data = np.pad(processed_data, (0, padding_size), 'constant')
             
-            # Vérifier si on dépasse la fin du son
-            if start_sample_idx >= self.audio_sound.audio_data.size:
-                # Si nous sommes déjà à la fin ou au-delà, renvoyer des zéros
-                self.playback_position += num_frames_to_generate # Avancer la position globale
-                return output_block 
-
-            data_to_process = self.audio_sound.audio_data[start_sample_idx : end_sample_idx].copy()
-
-            # Si les données sont mono mais la piste est stéréo (ou vice-versa), gérer la conversion/duplication
-            if source_channels == 1 and self.num_channels == 2:
-                # Dupliquer le canal mono en stéréo
-                temp_block_stereo = np.empty(num_frames_to_generate * 2, dtype=np.float32)
-                
-                # data_to_process pourrait être plus court que prévu si on atteint la fin du son.
-                # On doit d'abord padder data_to_process pour avoir num_frames_to_generate samples mono
-                mono_frames_to_pad = num_frames_to_generate - (len(data_to_process) // source_channels)
-                if mono_frames_to_pad > 0:
-                    data_to_process = np.pad(data_to_process, (0, mono_frames_to_pad), 'constant')
-
-                temp_block_stereo[0::2] = data_to_process # Canal gauche
-                temp_block_stereo[1::2] = data_to_process # Canal droit
-                processed_data = temp_block_stereo
-                
-            elif source_channels == 2 and self.num_channels == 1:
-                # Convertir stéréo en mono (somme des canaux)
-                # data_to_process pourrait être plus court que prévu. Padder si nécessaire.
-                stereo_samples_to_pad = num_frames_to_generate * 2 - len(data_to_process)
-                if stereo_samples_to_pad > 0:
-                    data_to_process = np.pad(data_to_process, (0, stereo_samples_to_pad), 'constant')
-                
-                processed_data = np.mean(data_to_process.reshape(-1, 2), axis=1) # Prend la moyenne des canaux
-                # Si la piste est stéréo mais qu'on a converti de stéréo à mono, on doit re-dupliquer
-                # C'est un cas peu probable car num_channels de la piste est 1 ici.
-                if self.num_channels == 2: 
-                    temp_block_stereo = np.empty(num_frames_to_generate * 2, dtype=np.float32)
-                    temp_block_stereo[0::2] = processed_data
-                    temp_block_stereo[1::2] = processed_data
-                    processed_data = temp_block_stereo
-            
-            else: # Cas où les canaux source et piste correspondent
-                # S'assurer que la taille correspond et padder/tronquer si nécessaire
-                expected_size = num_frames_to_generate * self.num_channels
-                if len(data_to_process) < expected_size:
-                    processed_data = np.pad(data_to_process, (0, expected_size - len(data_to_process)), 'constant')
-                else:
-                    processed_data = data_to_process[:expected_size]
-
+            output_block[:] = processed_data
 
         # Appliquer volume et panoramique
         if self.volume != 1.0 or self.pan != 0.0:
-            # Le panoramique n'a de sens que pour une piste stéréo
-            if self.num_channels == 2: 
-                reshaped_data = processed_data.reshape(-1, 2) # (frames, 2)
+            if self.num_channels == 2: # Seulement si la piste est stéréo
+                reshaped_data = output_block.reshape(-1, 2) # (frames, 2)
                 
-                # Calculer les gains pour le panoramique
-                # Pan: -1 (gauche) à 1 (droite)
-                # Utilisez une loi de puissance (ex: -3dB au centre pour maintenir le volume perçu)
-                # ou simplement la loi linéaire (1-pan)/2 et (1+pan)/2.
-                # Pour garder les choses simples, utilisons une approche linéaire avec un ajustement global.
-                # Le facteur *2 est conservé pour compenser la division par 2 (L+R).
-
-                # Gains simples pour pan
+                # Gains pour panoramique
                 gain_left = (1.0 - self.pan) 
                 gain_right = (1.0 + self.pan) 
                 
-                # Appliquer le volume et le panoramique
-                reshaped_data[:, 0] *= (self.volume * gain_left) # Canal gauche
-                reshaped_data[:, 1] *= (self.volume * gain_right) # Canal droit
+                reshaped_data[:, 0] *= (self.volume * gain_left) 
+                reshaped_data[:, 1] *= (self.volume * gain_right) 
                  
-                processed_data = reshaped_data.flatten() # Revenir à 1D
+                output_block[:] = reshaped_data.flatten() # Revenir à 1D
             else: # Mono channel (pas de panoramique, juste le volume)
-                processed_data *= self.volume
-
-        # Copier les données traitées dans le buffer de sortie
-        # Assurez-vous que la taille correspond avant de copier
-        if len(processed_data) == len(output_block):
-            output_block[:] = processed_data
-        else:
-            print(f"AdikTrack '{self.name}': Taille de bloc inattendue après traitement. "
-                  f"Attendu: {len(output_block)}, Obtenu: {len(processed_data)}")
-            # En cas de mismatch, on retourne le bloc de zéros initial ou une partie
-            # pour éviter une erreur, mais c'est un signe qu'il faut débugger la logique de padding.
-            return np.zeros(num_frames_to_generate * self.num_channels, dtype=np.float32)
-
+                output_block *= self.volume
 
         # Mettre à jour la position de lecture de la piste
         self.playback_position += num_frames_to_generate
