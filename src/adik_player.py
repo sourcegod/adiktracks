@@ -36,6 +36,7 @@ class AdikPlayer:
         self.recording_sound = None 
         self.recording_start_frame = 0 # La frame où l'enregistrement a commencé
         self.recording_end_frame = 0 # Initialiser la fin à la même position
+        self.recording_mode = AdikTrack.RECORDING_MODE_REPLACE
 
         # total_duration_seconds et current_time_seconds seront gérés comme des propriétés (voir plus bas)
         self.total_duration_seconds_cached = 0.0 # Cache pour la durée totale
@@ -228,13 +229,13 @@ class AdikPlayer:
             recorded_sound_data = self.recording_buffer
             
             selected_track = self.get_selected_track()
-
             if selected_track:
-                # Appeler la méthode arrange_take de la piste
+                # Appeler la méthode arrange_take de la piste avec le mode d'enregistrement
                 selected_track.arrange_take(
                     new_take_audio_data=recorded_sound_data,
                     take_start_frame=self.recording_start_frame,
-                    take_end_frame=self.recording_end_frame
+                    take_end_frame=self.recording_end_frame,
+                    recording_mode=self.recording_mode # <<< NOUVEAU : On passe le mode ici
                 )
                 print(f"Player: Enregistrement arrangé sur la piste '{selected_track.name}'.")
             else:
@@ -262,103 +263,16 @@ class AdikPlayer:
 
     #----------------------------------------
 
-    '''
-    def _finish_recording_old(self):
-        """
-        Finalise l'enregistrement en créant un AdikSound à partir du buffer
-        et l'assigne à la piste sélectionnée ou à une nouvelle piste,
-        en respectant la position de début d'enregistrement.
-        Doit être appelée sous le _lock.
-        """
-        if not self.is_recording:
-            print("Player: Aucune session d'enregistrement active à finaliser (interne).")
-            return
-
-        print("Player: Finalisation de l'enregistrement...")
-        self.is_recording = False # Mettre fin à l'état d'enregistrement immédiatement
-
-        if self.recording_buffer.size > 0:
-            self.recording_sound = AdikSound(
-                name=f"adik_rec_{time.strftime('%Y%m%d_%H%M%S')}",
-                audio_data=self.recording_buffer,
-                sample_rate=self.sample_rate,
-                num_channels=self.num_input_channels # Les canaux de l'enregistrement sont les canaux d'entrée
-            )
-            
-            selected_track = self.get_selected_track()
-            if selected_track:
-                # Assigner le son enregistré à la piste sélectionnée
-                # Le son est placé à l'offset de la frame de début d'enregistrement
-                selected_track.set_audio_sound(self.recording_sound, offset_frames=self.recording_start_frame)
-                print(f"Player: Enregistrement assigné à la piste '{selected_track.name}' à la frame {self.recording_start_frame}.")
-            else:
-                # Si aucune piste sélectionnée, créer une nouvelle piste
-                new_track_name = f"Piste Enregistrée {len(self.tracks) + 1}"
-                new_track = self.add_track(new_track_name) # add_track prend un lock
-                # Le son est placé à l'offset de la frame de début d'enregistrement
-                new_track.set_audio_sound(self.recording_sound, offset_frames=self.recording_start_frame)
-                print(f"Player: Enregistrement ajouté à une nouvelle piste '{new_track.name}' à la frame {self.recording_start_frame}.")
-            
-            self._update_total_duration_cache() # Mettre à jour la durée totale du projet
-            self.recording_buffer = np.array([], dtype=np.float32) # Vider le buffer après utilisation
+    def set_recording_mode(self, mode: int):
+        """Définit le mode d'enregistrement pour les futures prises."""
+        if mode in [AdikTrack.RECORDING_MODE_REPLACE, AdikTrack.RECORDING_MODE_MIX]:
+            self.recording_mode = mode
+            mode_name = "Remplacement" if mode == AdikTrack.RECORDING_MODE_REPLACE else "Mixage"
+            print(f"Player: Mode d'enregistrement changé en '{mode_name}'.")
         else:
-            print("Player: Le buffer d'enregistrement est vide. Rien à finaliser.")
-        
-        print("Player: Enregistrement finalisé.")
+            print(f"Erreur: Mode d'enregistrement '{mode}' invalide.")
 
     #----------------------------------------
-    '''
-    '''
-    def _finish_recording_old(self):
-        """
-        Depracated function
-        Finalise l'enregistrement en créant un AdikSound à partir du buffer
-        et l'assigne à la piste sélectionnée ou à une nouvelle piste.
-        Doit être appelée sous le _lock.
-        """
-        if not self.is_recording:
-            # Cette condition peut arriver si _finish_recording est appelée plusieurs fois
-            # suite à des appels stop/pause successifs sans nouvel enregistrement.
-            print("Player: Aucune session d'enregistrement active à finaliser (interne).")
-            return
-
-        # Ici, nous sommes déjà sous self._lock
-        print("Player: Finalisation de l'enregistrement...")
-        self.is_recording = False # Mettre fin à l'état d'enregistrement immédiatement
-
-        if self.recording_buffer.size > 0:
-            # Créer un AdikSound à partir du buffer enregistré
-            # S'assurer que le nom est unique ou significatif
-            self.recording_sound = AdikSound(
-                name=f"adik_rec_{time.strftime('%Y%m%d_%H%M%S')}",
-                audio_data=self.recording_buffer,
-                sample_rate=self.sample_rate,
-                num_channels=self.num_input_channels # Les canaux de l'enregistrement sont les canaux d'entrée
-            )
-            
-            selected_track = self.get_selected_track()
-            if selected_track:
-                # Assigner le son enregistré à la piste sélectionnée
-                selected_track.set_audio_sound(self.recording_sound)
-                print(f"Player: Enregistrement assigné à la piste '{selected_track.name}'.")
-            else:
-                # Si aucune piste sélectionnée, créer une nouvelle piste
-                new_track_name = f"Piste Enregistrée {len(self.tracks) + 1}"
-                new_track = self.add_track(new_track_name) # add_track prend un lock
-                new_track.set_audio_sound(self.recording_sound)
-                # La sélection de la nouvelle piste est déjà gérée par add_track
-                print(f"Player: Enregistrement ajouté à une nouvelle piste '{new_track.name}'.")
-            
-            self._update_total_duration_cache() # Mettre à jour la durée totale du projet
-            self.recording_buffer = np.array([], dtype=np.float32) # Vider le buffer après utilisation
-        else:
-            print("Player: Le buffer d'enregistrement est vide. Rien à finaliser.")
-        
-        print("Player: Enregistrement finalisé.")
-
-    #----------------------------------------
-    '''
-
 
     def save_recording(self, filename=None):
         """Sauvegarde le son de l'enregistrement actuel ou le dernier enregistré dans un fichier WAV."""

@@ -5,6 +5,10 @@ from adik_sound import AdikSound # Pour associer un son à la piste
 class AdikTrack:
     _next_id = 0 # Pour générer des IDs uniques de piste
 
+    # Définition des modes d'enregistrement
+    RECORDING_MODE_REPLACE = 0
+    RECORDING_MODE_MIX = 1
+
     def __init__(self, name=None, sample_rate=44100, num_channels=2):
         self.id = AdikTrack._next_id
         AdikTrack._next_id += 1
@@ -173,6 +177,126 @@ class AdikTrack:
 
     #----------------------------------------
 
+    def arrange_take(self, new_take_audio_data: np.ndarray, take_start_frame: int, take_end_frame: int, recording_mode: int):
+        """
+        Arrange une nouvelle prise sur le son existant de la piste, en fonction du mode d'enregistrement.
+        :param new_take_audio_data: Le buffer NumPy de la nouvelle prise.
+        :param take_start_frame: La position (en frames) où la prise a commencé.
+        :param take_end_frame: La position (en frames) où la prise s'est terminée.
+        :param recording_mode: Le mode d'enregistrement (REPLACE ou MIX).
+        """
+        if self.audio_sound is None:
+            # Cas simple : la piste est vide, la prise devient le son de la piste.
+            self.set_audio_sound(AdikSound(
+                name=f"{self.name}_take",
+                audio_data=new_take_audio_data,
+                sample_rate=self.sample_rate,
+                num_channels=self.num_channels
+            ), offset_frames=take_start_frame)
+            print(f"Piste '{self.name}': Nouvelle prise ({len(new_take_audio_data)//self.num_channels} frames) ajoutée à une piste vide à l'offset {take_start_frame}.")
+            return
+
+        old_sound_data = self.audio_sound.audio_data
+        old_sound_length_frames = self.audio_sound.get_length_frames()
+        old_sound_end_frame_global = self.offset_frames + old_sound_length_frames
+        
+        take_length_frames = len(new_take_audio_data) // self.audio_sound.num_channels
+        
+        new_total_length_frames = max(old_sound_end_frame_global, take_end_frame) - min(self.offset_frames, take_start_frame)
+        new_buffer = np.zeros(new_total_length_frames * self.num_channels, dtype=np.float32)
+
+        # Les positions de début de l'ancien son et de la prise par rapport au nouveau buffer
+        old_sound_relative_start = self.offset_frames - min(self.offset_frames, take_start_frame)
+        take_relative_start = take_start_frame - min(self.offset_frames, take_start_frame)
+
+        # 1. Copier l'ancien son dans le nouveau buffer (avant le point d'insertion de la prise)
+        frames_before_take = min(old_sound_length_frames, take_start_frame - self.offset_frames)
+        if frames_before_take > 0:
+            segment_start_old_sound = 0
+            segment_end_old_sound = int(frames_before_take * self.audio_sound.num_channels)
+            old_data_before_take = self._convert_channels(old_sound_data[segment_start_old_sound:segment_end_old_sound], self.audio_sound.num_channels, self.num_channels, frames_before_take)
+            dest_start_idx = int(old_sound_relative_start * self.num_channels)
+            dest_end_idx = dest_start_idx + old_data_before_take.size
+            new_buffer[dest_start_idx:dest_end_idx] = old_data_before_take
+        
+        # 2. Gérer la zone de chevauchement et insérer la nouvelle prise
+        # Calculer le chevauchement avec l'ancien son
+        overlap_start_frame = max(take_start_frame, self.offset_frames)
+        overlap_end_frame = min(take_end_frame, old_sound_end_frame_global)
+        
+        if recording_mode == AdikTrack.RECORDING_MODE_REPLACE:
+            print("Mode de remplacement activé.")
+            # Insérer la nouvelle prise directement
+            processed_new_take = self._convert_channels(new_take_audio_data, self.audio_sound.num_channels, self.num_channels, take_length_frames)
+            dest_start_idx = int(take_relative_start * self.num_channels)
+            dest_end_idx = dest_start_idx + processed_new_take.size
+            new_buffer[dest_start_idx : min(dest_end_idx, new_buffer.size)] = processed_new_take[:min(processed_new_take.size, new_buffer.size - dest_start_idx)]
+        
+        elif recording_mode == AdikTrack.RECORDING_MODE_MIX:
+            print("Mode de mixage activé.")
+            # Récupérer la partie de l'ancien son qui chevauche
+            if overlap_end_frame > overlap_start_frame:
+                overlap_length_frames = overlap_end_frame - overlap_start_frame
+                
+                # Partie de l'ancien son qui chevauche
+                old_overlap_start_frame_in_sound = overlap_start_frame - self.offset_frames
+                old_overlap_data = old_sound_data[int(old_overlap_start_frame_in_sound * self.audio_sound.num_channels) : int((old_overlap_start_frame_in_sound + overlap_length_frames) * self.audio_sound.num_channels)].copy()
+                old_overlap_data = self._convert_channels(old_overlap_data, self.audio_sound.num_channels, self.num_channels, overlap_length_frames)
+                
+                # Partie de la nouvelle prise qui chevauche
+                new_overlap_start_frame_in_take = overlap_start_frame - take_start_frame
+                new_overlap_data = new_take_audio_data[int(new_overlap_start_frame_in_take * self.audio_sound.num_channels) : int((new_overlap_start_frame_in_take + overlap_length_frames) * self.audio_sound.num_channels)].copy()
+                new_overlap_data = self._convert_channels(new_overlap_data, self.audio_sound.num_channels, self.num_channels, overlap_length_frames)
+
+                # Mixer les deux buffers de chevauchement
+                mixed_overlap = old_overlap_data + new_overlap_data
+                
+                # Copier l'ancien son avant l'overlap
+                # ... (cette partie est déjà gérée au point 1)
+                
+                # Coller le mix dans le nouveau buffer
+                dest_start_idx = int((overlap_start_frame - min(self.offset_frames, take_start_frame)) * self.num_channels)
+                new_buffer[dest_start_idx : dest_start_idx + mixed_overlap.size] = mixed_overlap
+
+                # Copier le reste de la prise (après le chevauchement)
+                take_after_overlap_start_frame = overlap_end_frame - take_start_frame
+                if take_end_frame > overlap_end_frame:
+                    take_after_overlap_data = new_take_audio_data[int(take_after_overlap_start_frame * self.audio_sound.num_channels):].copy()
+                    take_after_overlap_data = self._convert_channels(take_after_overlap_data, self.audio_sound.num_channels, self.num_channels, (take_end_frame - overlap_end_frame))
+                    dest_start_idx = int((overlap_end_frame - min(self.offset_frames, take_start_frame)) * self.num_channels)
+                    new_buffer[dest_start_idx : dest_start_idx + take_after_overlap_data.size] = take_after_overlap_data
+
+            else: # Pas de chevauchement, juste insérer la prise
+                processed_new_take = self._convert_channels(new_take_audio_data, self.audio_sound.num_channels, self.num_channels, take_length_frames)
+                dest_start_idx = int(take_relative_start * self.num_channels)
+                dest_end_idx = dest_start_idx + processed_new_take.size
+                new_buffer[dest_start_idx : min(dest_end_idx, new_buffer.size)] = processed_new_take[:min(processed_new_take.size, new_buffer.size - dest_start_idx)]
+
+
+        # 3. Copier la fin de l'ancien son
+        if take_end_frame < old_sound_end_frame_global:
+            frames_after_take_in_old_sound = old_sound_end_frame_global - take_end_frame
+            if frames_after_take_in_old_sound > 0:
+                segment_start_old_sound_frames = take_end_frame - self.offset_frames
+                segment_start_old_sound = int(segment_start_old_sound_frames * self.audio_sound.num_channels)
+                segment_end_old_sound = int(old_sound_length_frames * self.audio_sound.num_channels)
+                old_data_after_take = self._convert_channels(old_sound_data[segment_start_old_sound:segment_end_old_sound], self.audio_sound.num_channels, self.num_channels, frames_after_take_in_old_sound)
+                dest_start_idx = int((take_end_frame - min(self.offset_frames, take_start_frame)) * self.num_channels)
+                dest_end_idx = dest_start_idx + old_data_after_take.size
+                new_buffer[dest_start_idx : min(dest_end_idx, new_buffer.size)] = old_data_after_take[:min(old_data_after_take.size, new_buffer.size - dest_start_idx)]
+
+        # Mettre à jour le AdikSound de la piste avec le nouveau buffer
+        self.set_audio_sound(AdikSound(
+            name=f"{self.name}_arranged_take",
+            audio_data=new_buffer,
+            sample_rate=self.sample_rate,
+            num_channels=self.num_channels
+        ), offset_frames=min(self.offset_frames, take_start_frame))
+        print(f"Piste '{self.name}': Take arrangée. Nouvelle longueur: {self.audio_sound.get_length_frames()} frames, nouvel offset: {self.offset_frames}.")
+
+    #----------------------------------------
+
+    '''
     def arrange_take(self, new_take_audio_data: np.ndarray, take_start_frame: int, take_end_frame: int):
         """
         Arrange une nouvelle prise (take) sur le son existant de la piste,
@@ -289,7 +413,8 @@ class AdikTrack:
 
 
     #----------------------------------------
-
+    '''
+    
     def reset_playback_position(self):
         # Réinitialise à l'offset, pas à 0
         self.playback_position = self.offset_frames
