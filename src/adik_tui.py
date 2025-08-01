@@ -114,8 +114,8 @@ class MainWindow:
             status = []
             if track.is_muted: status.append("M")
             if track.is_solo: status.append("S")
-            # En supposant que AdikTrack aura un attribut is_armed_for_recording
-            if getattr(track, 'is_armed_for_recording', False): status.append("REC") 
+            # En supposant que AdikTrack aura un attribut is_armed
+            if getattr(track, 'is_armed', False): status.append("REC") 
             status_str = f"[{' '.join(status)}]" if status else ""
 
             # Assurez-vous que le nom de la piste s'adapte ou est tronqué
@@ -181,9 +181,12 @@ class MainWindow:
             else:
                 self.player.play()
                 self.display_status("Lecteur en lecture.")
-        elif key == ord('a') or key == ord('A'): # A: Ajouter Piste
-            self.player.add_track()
-            self.display_status("Nouvelle piste ajoutée.")
+        elif key == ord('a'): # a: armé piste
+            if selected_track:
+                selected_track.is_armed = not selected_track.is_armed
+                self.display_status(f"Piste '{selected_track.name}' Armée: {selected_track.is_armed}")
+            else:
+                self.display_status("Aucune piste sélectionnée.")
         elif key == ord('b') or key == ord('B'): # B: Avance rapide
             self.player.forward()
             self.display_status(f"Avance rapide à {self.player.current_time_seconds:.2f}s.")
@@ -230,6 +233,9 @@ class MainWindow:
         elif key == ord('>'): # >: Aller à la fin
             self.player.goto_end()
             self.display_status("Aller à la fin.")
+        elif key == 20: # Ctrl+T: Ajouter une piste
+            self.player.add_track()
+            self.display_status("Nouvelle piste ajoutée.")
         elif key == 23: # Ctrl+W: sauvegarder le fichier enregistré
             if self.player.save_recording():
                 self.display_status("Fichier Sauvegardé")

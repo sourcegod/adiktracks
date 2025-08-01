@@ -26,7 +26,7 @@ class AdikTrack:
 
         self.is_muted = False
         self.is_solo = False
-        self.is_armed_for_recording = False # True si la piste est prête à enregistrer
+        self.is_armed = False # True si la piste est prête à enregistrer
 
         print(f"AdikTrack '{self.name}' (ID: {self.id}) créé.")
 
@@ -434,7 +434,7 @@ class AdikTrack:
         status = []
         if self.is_muted: status.append("M")
         if self.is_solo: status.append("S")
-        if self.is_armed_for_recording: status.append("R")
+        if self.is_armed: status.append("R")
         status_str = f"[{' '.join(status)}]" if status else ""
 
         sound_info = f"'{self.audio_sound.name}'" if self.audio_sound else "None"

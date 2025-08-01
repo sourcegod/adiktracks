@@ -166,6 +166,11 @@ class AdikPlayer:
             print("Player: Déjà en enregistrement. Appuyez sur 'R' de nouveau pour arrêter.")
             return
 
+        selected_track = self.get_selected_track()
+        if not selected_track or not selected_track.is_armed:
+            print("Player: Aucune piste armée pour l'enregistrement.")
+            return
+
         # S'assurer que le stream est actif (et configuré pour l'entrée)
         if not self._is_engine_running():
             self._start_engine()
@@ -415,6 +420,14 @@ class AdikPlayer:
             solo_active = any(track.is_solo for track in self.tracks)
 
             for track in self.tracks:
+                # Si la piste est armée pour l'enregistrement
+                if track.is_armed and self.is_recording:
+                    # Si le mode est "remplacer", on mute la piste pendant l'enregistrement.
+                    # On ne veut pas entendre ce qui est déjà sur la piste.
+                    if self.recording_mode == AdikTrack.RECORDING_MODE_REPLACE:
+                        continue
+                    # Si le mode est "mixer", on laisse la piste jouer, car elle sera mixée avec la nouvelle prise.
+                    
                 if track.audio_sound and track.audio_sound.audio_data.size > 0:
                     # Gérer les états Mute/Solo
                     if track.is_muted:
