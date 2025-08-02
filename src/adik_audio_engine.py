@@ -103,7 +103,7 @@ class AdikAudioEngine:
             print("Engine: Stream audio arrêté.")
     #----------------------------------------
 
-    def is_stream_active(self):
+    def is_running(self):
         """Retourne True si le stream audio est actif."""
         return self.stream is not None and self.stream.active
 

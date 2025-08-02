@@ -371,31 +371,28 @@ class AdikPlayer:
     # --- Gestion du stream de audio_engine ---
     def _start_engine(self):
         """Démarre l'engine audio."""
-        self.audio_engine.start_stream()
+        if not self._is_engine_running():
+            self.audio_engine.start_stream()
 
     #----------------------------------------
 
     def _stop_engine(self):
         """Arrête l'engine audio."""
-        self.audio_engine.stop_stream()
+        if self._is_engine_running():
+            self.audio_engine.stop_stream()
 
     #----------------------------------------
 
     def _is_engine_running(self):
         """Retourne si le moteur audio est actif"""
-        return self.audio_engine.is_stream_active()
-
-    #----------------------------------------
-# adik_player.py
-
-# ... (les imports et la classe AdikPlayer restent inchangés, sauf la méthode suivante) ...
+        return self.audio_engine.is_running()
 
     #----------------------------------------
 
     def _audio_callback(self, indata, outdata, frames, time_info, status):
         """
         Le callback audio principal appelé par sounddevice.
-        Optimisé pour la performance afin d'éviter les underflows.
+        Optimisé pour la performance et une gestion fine du verrou.
         """
         if status:
             print(f"Status du callback audio: {status}", flush=True)
@@ -406,33 +403,35 @@ class AdikPlayer:
             if self.is_recording and indata is not None and indata.size > 0:
                 self.recording_buffer = np.append(self.recording_buffer, indata.astype(np.float32).flatten())
 
-            # 2. Traitement de la lecture
+            # 2. Si le player n'est pas en lecture, on remplit le buffer de sortie avec des zéros.
+            # L'opération doit être la plus rapide possible.
             if not self.is_playing: 
                 outdata.fill(0.0)
+                # La logique pour le mode pause se termine ici, ce qui libère le verrou
+                # rapidement et évite tout risque d'underflow.
                 return
 
+            # 3. Le reste de la logique ne s'exécute que si self.is_playing est True
+            
             # Initialisation du buffer de sortie avec des zéros.
             output_buffer = np.zeros(frames * self.num_output_channels, dtype=np.float32)
 
             solo_active = any(track.is_solo for track in self.tracks)
 
             for track in self.tracks:
-                # Gérer le mute et le solo
                 if track.is_muted:
                     continue
                 if solo_active and not track.is_solo:
                     continue
                     
-                # Gérer le mode d'enregistrement "remplacement"
+                # Utiliser la nouvelle propriété `track.is_armed`
                 if track.is_armed and self.is_recording and self.recording_mode == AdikTrack.RECORDING_MODE_REPLACE:
                     continue
                 
-                # Si la piste contient des données audio, on génère son bloc
                 if track.audio_sound and track.audio_sound.audio_data.size > 0:
                     try:
                         track_block = track.get_audio_block(frames)
                         
-                        # S'assurer que le buffer de la piste a la bonne taille pour le mixage
                         if track_block.size == output_buffer.size:
                             output_buffer += track_block
                         else:
@@ -441,14 +440,11 @@ class AdikPlayer:
                     except Exception as e:
                         print(f"Erreur lors de la génération du bloc pour la piste {track.name}: {e}")
                         
-            # Mettre à jour la sortie de Sounddevice
             outdata[:] = output_buffer.reshape((frames, self.num_output_channels))
 
-            # Mettre à jour la position de lecture du player
             self.current_playback_frame += frames
             self.current_time_seconds_cached = self.current_playback_frame / self.sample_rate
 
-            # Vérifier si toutes les pistes sont terminées
             all_tracks_finished = True
             for track in self.tracks:
                 if track.audio_sound:
@@ -461,7 +457,6 @@ class AdikPlayer:
                 self.is_playing = False
                 
     #----------------------------------------
-
 
     '''
     def _audio_callback_old(self, indata, outdata, frames, time_info, status):
