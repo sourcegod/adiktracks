@@ -386,9 +386,87 @@ class AdikPlayer:
         return self.audio_engine.is_stream_active()
 
     #----------------------------------------
+# adik_player.py
+
+# ... (les imports et la classe AdikPlayer restent inchangés, sauf la méthode suivante) ...
+
+    #----------------------------------------
 
     def _audio_callback(self, indata, outdata, frames, time_info, status):
         """
+        Le callback audio principal appelé par sounddevice.
+        Optimisé pour la performance afin d'éviter les underflows.
+        """
+        if status:
+            print(f"Status du callback audio: {status}", flush=True)
+            beep()
+            
+        with self._lock:
+            # 1. Traitement de l'enregistrement
+            if self.is_recording and indata is not None and indata.size > 0:
+                self.recording_buffer = np.append(self.recording_buffer, indata.astype(np.float32).flatten())
+
+            # 2. Traitement de la lecture
+            if not self.is_playing: 
+                outdata.fill(0.0)
+                return
+
+            # Initialisation du buffer de sortie avec des zéros.
+            output_buffer = np.zeros(frames * self.num_output_channels, dtype=np.float32)
+
+            solo_active = any(track.is_solo for track in self.tracks)
+
+            for track in self.tracks:
+                # Gérer le mute et le solo
+                if track.is_muted:
+                    continue
+                if solo_active and not track.is_solo:
+                    continue
+                    
+                # Gérer le mode d'enregistrement "remplacement"
+                if track.is_armed and self.is_recording and self.recording_mode == AdikTrack.RECORDING_MODE_REPLACE:
+                    continue
+                
+                # Si la piste contient des données audio, on génère son bloc
+                if track.audio_sound and track.audio_sound.audio_data.size > 0:
+                    try:
+                        track_block = track.get_audio_block(frames)
+                        
+                        # S'assurer que le buffer de la piste a la bonne taille pour le mixage
+                        if track_block.size == output_buffer.size:
+                            output_buffer += track_block
+                        else:
+                            print(f"Avertissement: Taille de bloc de piste inattendue. Piste {track.name}.")
+
+                    except Exception as e:
+                        print(f"Erreur lors de la génération du bloc pour la piste {track.name}: {e}")
+                        
+            # Mettre à jour la sortie de Sounddevice
+            outdata[:] = output_buffer.reshape((frames, self.num_output_channels))
+
+            # Mettre à jour la position de lecture du player
+            self.current_playback_frame += frames
+            self.current_time_seconds_cached = self.current_playback_frame / self.sample_rate
+
+            # Vérifier si toutes les pistes sont terminées
+            all_tracks_finished = True
+            for track in self.tracks:
+                if track.audio_sound:
+                    if self.current_playback_frame < (track.offset_frames + track.audio_sound.get_length_frames()):
+                        all_tracks_finished = False
+                        break
+            
+            if all_tracks_finished and not self.is_recording: 
+                print("Player: Toutes les pistes ont fini de jouer. Arrêt automatique.")
+                self.is_playing = False
+                
+    #----------------------------------------
+
+
+    '''
+    def _audio_callback_old(self, indata, outdata, frames, time_info, status):
+        """
+        Deprecated function
         Le callback audio principal appelé par sounddevice.
         'indata' contient les samples d'entrée, 'outdata' doit être rempli avec les samples de sortie.
         """
@@ -467,6 +545,7 @@ class AdikPlayer:
                 # On ne stop_stream pas ici. Géré par stop() ou stop_recording() si nécessaire.
   
     #----------------------------------------
+    '''
 
     # --- Propriétés pour l'affichage de la position et durée ---
     @property
