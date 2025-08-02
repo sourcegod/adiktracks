@@ -6,33 +6,6 @@
 """
 import math
 import numpy as np
-"""
-class AdikSound:
-    _next_id = 0 # Pour générer des IDs uniques
-
-    def __init__(self, name, audio_data, sample_rate, num_channels):
-        self.id = AdikSound._next_id
-        AdikSound._next_id += 1
-        self.name = name
-        # Assurez-vous que les données sont au format float32 pour l'audio processing
-        if audio_data.dtype != np.float32:
-            self.audio_data = audio_data.astype(np.float32)
-        else:
-            self.audio_data = audio_data
-        self.sample_rate = sample_rate
-        self.num_channels = num_channels
-        
-        # S'assurer que audio_data est 1D (entrelacé pour multi-canaux)
-        if self.audio_data.ndim > 1:
-            self.audio_data = self.audio_data.flatten()
-
-        print(f"AdikSound '{self.name}' (ID: {self.id}) créé. "
-              f"SR: {self.sample_rate}, Channels: {self.num_channels}, "
-              f"Durée: {self.get_duration_seconds():.2f}s")
-
-    #----------------------------------------
-"""
-
 
 class AdikSound:
     _next_id =0
@@ -40,6 +13,11 @@ class AdikSound:
         self.id = AdikSound._next_id
         AdikSound._next_id += 1
         self.name = name
+        if audio_data is not None and audio_data.dtype != np.float32:
+            self.audio_data = audio_data.astype(np.float32)
+        else:
+            self.audio_data = audio_data
+
         self.sample_rate = sample_rate
         self.num_channels = num_channels
         
@@ -53,7 +31,11 @@ class AdikSound:
                  print(f"Attention: Longueur des données audio ({len(self.audio_data)}) non multiple du nombre de canaux ({self.num_channels}).")
         else:
             self.audio_data = np.array([], dtype=np.float32)  # Utilisation de NumPy pour les données audio
-        
+
+        # S'assurer que audio_data est 1D (entrelacé pour multi-canaux)
+        if self.audio_data.ndim > 1:
+            self.audio_data = self.audio_data.flatten()
+
         print(f"AdikSound '{self.name}' (ID: {self.id}) créé. "
               f"SR: {self.sample_rate}, Channels: {self.num_channels}, "
               f"Durée: {self.get_duration_seconds():.2f}s")
@@ -135,6 +117,38 @@ class AdikSound:
             return buffer1_padded + buffer2
         else:
             return buffer1 + buffer2
+
+    #----------------------------------------
+
+    def convert_channels(data: np.ndarray, source_channels: int, target_channels: int, num_frames: int):
+        """
+        Convertit un bloc audio d'un nombre de canaux à un autre.
+        `data` doit être un buffer 1D de samples entrelacés.
+        `num_frames` est la longueur du bloc audio en frames.
+        """
+        if source_channels == target_channels:
+            # S'assurer que le padding est appliqué si data est plus court que prévu
+            expected_size = num_frames * target_channels
+            if data.size < expected_size:
+                return np.pad(data, (0, expected_size - data.size), 'constant')
+            return data
+        
+        # Cas Mono -> Stéréo
+        if source_channels == 1 and target_channels == 2:
+            processed_data = np.empty(num_frames * 2, dtype=np.float32)
+            data_mono_padded = np.pad(data, (0, num_frames - (data.size // source_channels)), 'constant')
+            processed_data[0::2] = data_mono_padded
+            processed_data[1::2] = data_mono_padded
+            return processed_data
+            
+        # Cas Stéréo -> Mono (moyenne)
+        elif source_channels == 2 and target_channels == 1:
+            data_stereo_padded = np.pad(data, (0, num_frames * 2 - data.size), 'constant')
+            return np.mean(data_stereo_padded.reshape(-1, 2), axis=1)
+        
+        else:
+            print(f"Avertissement: Conversion de canaux non gérée: {source_channels} -> {target_channels}.")
+            return AdikSound.new_audio_data(num_frames * target_channels)
 
     #----------------------------------------
 

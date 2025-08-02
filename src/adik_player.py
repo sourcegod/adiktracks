@@ -15,7 +15,7 @@ def beep():
 #----------------------------------------
 
 class AdikPlayer:
-    def __init__(self, sample_rate=44100, block_size=1024, num_output_channels=2, num_input_channels=2):
+    def __init__(self, sample_rate=44100, block_size=1024, num_output_channels=2, num_input_channels=1):
         self.sample_rate = sample_rate
         self.block_size = block_size
         self.num_output_channels = num_output_channels # Canaux de sortie du player/mixer
@@ -214,6 +214,37 @@ class AdikPlayer:
     #----------------------------------------
     
     def _finish_recording(self):
+        if not self.is_recording:
+            print("Player: Aucune session d'enregistrement active à finaliser (interne).")
+            return
+
+        print("Player: Finalisation de l'enregistrement...")
+        self.is_recording = False
+
+        if self.recording_buffer.size > 0:
+            self.recording_end_frame = self.current_playback_frame 
+            recorded_sound_data = self.recording_buffer
+            
+            selected_track = self.get_selected_track()
+
+            if selected_track:
+                # IMPORTANT : on passe le nombre de canaux de la prise (canaux d'entrée)
+                selected_track.arrange_take(
+                    new_take_audio_data=recorded_sound_data,
+                    take_start_frame=self.recording_start_frame,
+                    take_end_frame=self.recording_end_frame,
+                    recording_mode=self.recording_mode,
+                    new_take_channels=self.num_input_channels # <<< NOUVEAU
+                )
+                print(f"Player: Enregistrement arrangé sur la piste '{selected_track.name}'.")
+            else:
+                new_track_name = f"Piste Enregistrée {len(self.tracks) + 1}"
+                new_track = self.add_track(new_track_name)
+
+    #----------------------------------------
+
+    '''
+    def _finish_recording(self):
         """
         Finalise l'enregistrement en créant un AdikSound à partir du buffer
         et l'assigne à la piste sélectionnée, en arrangant la prise.
@@ -267,7 +298,7 @@ class AdikPlayer:
         print("Player: Enregistrement finalisé.")
 
     #----------------------------------------
-
+    '''
     def set_recording_mode(self, mode: int):
         """Définit le mode d'enregistrement pour les futures prises."""
         if mode in [AdikTrack.RECORDING_MODE_REPLACE, AdikTrack.RECORDING_MODE_MIX]:

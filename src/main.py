@@ -81,8 +81,9 @@ def main_curses(stdscr):
     sample_rate = 44100
     block_size = 1024
     num_output_channels = 2
+    num_input_channels = 1
 
-    player = AdikPlayer(sample_rate, block_size, num_output_channels)
+    player = AdikPlayer(sample_rate, block_size, num_output_channels, num_input_channels)
 
      # Initialiser la classe MainWindow pour l'interface utilisateur Curses
     ui = MainWindow(stdscr, player)
