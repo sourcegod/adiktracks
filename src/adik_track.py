@@ -65,27 +65,6 @@ class AdikTrack:
 
     #----------------------------------------
 
-
-    '''
-    def set_audio_sound_old(self, sound: AdikSound, offset_frames=0):
-        """Associe un AdikSound à cette piste."""
-        if not isinstance(sound, AdikSound):
-            print(f"Erreur: '{sound}' n'est pas un objet AdikSound valide.")
-            return False
-        self.audio_sound = sound
-        self.offset_frames = offset_frames # Stocke l'offset
-        # La position de lecture ne doit PAS être réinitialisée ici, elle est gérée par le Player
-        # self.playback_position = self.offset_frames
-        print(f"Piste '{self.name}': Son '{sound.name}' chargé avec offset de {offset_frames} frames.")
-
-        # Ajuster les canaux de la piste si le son est différent (ex: charger un mono sur piste stéréo)
-        # Pour l'instant, nous supposerons que la piste gère la conversion si nécessaire lors de get_audio_block.
-        # Mais le num_channels de la piste représente sa sortie finale avant mixage.
-        return True
-
-    #----------------------------------------
-    '''
-    
     def get_audio_block(self, num_frames_to_generate):
         """
         Génère un bloc audio pour la lecture de cette piste, en tenant compte de l'offset.
