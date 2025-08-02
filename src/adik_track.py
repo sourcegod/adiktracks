@@ -32,7 +32,42 @@ class AdikTrack:
 
     #----------------------------------------
 
-    def set_audio_sound(self, sound: AdikSound, offset_frames=0):
+    def set_audio_sound(self, sound: AdikSound, offset_frames: int = 0):
+        """
+        Assigne un objet AdikSound à la piste.
+        Si le nombre de canaux du son ne correspond pas à la piste, il est converti.
+        """
+        # Conversion des canaux si nécessaire
+        if sound.num_channels != self.num_channels:
+            print(f"Conversion des canaux du son '{sound.name}' de {sound.num_channels} vers {self.num_channels} pour la piste '{self.name}'.")
+            
+            # Utilisation de la fonction de conversion statique de AdikSound
+            converted_data = AdikSound.convert_channels(
+                sound.audio_data,
+                sound.num_channels,
+                self.num_channels,
+                sound.get_length_frames()
+            )
+            
+            # Créer un nouvel objet AdikSound avec les données converties
+            converted_sound = AdikSound(
+                name=f"{sound.name}_converted",
+                audio_data=converted_data,
+                sample_rate=sound.sample_rate,
+                num_channels=self.num_channels
+            )
+            self.audio_sound = converted_sound
+        else:
+            self.audio_sound = sound
+            
+        self.offset_frames = offset_frames
+        print(f"Son '{self.audio_sound.name}' assigné à la piste '{self.name}' avec un offset de {self.offset_frames} frames.")
+
+    #----------------------------------------
+
+
+    '''
+    def set_audio_sound_old(self, sound: AdikSound, offset_frames=0):
         """Associe un AdikSound à cette piste."""
         if not isinstance(sound, AdikSound):
             print(f"Erreur: '{sound}' n'est pas un objet AdikSound valide.")
@@ -49,7 +84,8 @@ class AdikTrack:
         return True
 
     #----------------------------------------
-
+    '''
+    
     def get_audio_block(self, num_frames_to_generate):
         """
         Génère un bloc audio pour la lecture de cette piste, en tenant compte de l'offset.

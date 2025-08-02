@@ -63,3 +63,66 @@ class AdikWaveHandler:
 
     #----------------------------------------
 
+    '''
+    ### Note: utilisation des fichiers audios uniquement avec le module wave, sans utiliser soundfile
+    ### Note: Code gardé ici, juste pour l'archivage
+    import wave
+    @staticmethod
+    def load_wav(file_path: str) -> AdikSound | None:
+        """
+        Charge un fichier .wav et retourne un objet AdikSound.
+        Tente de convertir les canaux si nécessaire.
+        """
+        if not os.path.exists(file_path):
+            print(f"Erreur: Fichier introuvable à {file_path}")
+            return None
+
+        try:
+            with wave.open(file_path, 'rb') as wf:
+                sample_rate = wf.getframerate()
+                n_channels = wf.getnchannels()
+                n_frames = wf.getnframes()
+                audio_data_bytes = wf.readframes(n_frames)
+
+            # Convertir les données en tableau NumPy de float32
+            # Les fichiers .wav de 16 bits sont courants.
+            audio_data = np.frombuffer(audio_data_bytes, dtype=np.int16).astype(np.float32) / 32768.0
+
+            # Retourner le son avec ses canaux d'origine
+            print(f"AdikWaveHandler: Fichier '{os.path.basename(file_path)}' chargé avec {n_channels} canaux.")
+            return AdikSound(
+                name=os.path.basename(file_path),
+                audio_data=audio_data,
+                sample_rate=sample_rate,
+                num_channels=n_channels
+            )
+
+        except Exception as e:
+            print(f"Erreur lors du chargement du fichier .wav: {e}")
+            return None
+
+    @staticmethod
+    def save_wav(file_path: str, sound: AdikSound):
+        """
+        Sauvegarde un objet AdikSound dans un fichier .wav.
+        """
+        if sound is None or sound.audio_data.size == 0:
+            print("Erreur: Le son à sauvegarder est vide.")
+            return
+
+        try:
+            with wave.open(file_path, 'wb') as wf:
+                wf.setnchannels(sound.num_channels)
+                wf.setsampwidth(2) # 16 bits
+                wf.setframerate(sound.sample_rate)
+
+                # Convertir les données float32 en int16 pour la sauvegarde
+                audio_data_int16 = (sound.audio_data * 32767).astype(np.int16)
+                wf.writeframes(audio_data_int16.tobytes())
+
+            print(f"AdikWaveHandler: Fichier '{os.path.basename(file_path)}' sauvegardé avec succès.")
+        except Exception as e:
+            print(f"Erreur lors de la sauvegarde du fichier .wav: {e}")
+    '''
+
+
