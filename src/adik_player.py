@@ -182,15 +182,9 @@ class AdikPlayer:
             
             # Stocker la position de début d'enregistrement
             self.recording_start_frame = self.current_playback_frame 
-            # Stocker la position de début d'enregistrement
-            self.recording_start_frame = self.current_playback_frame 
             self.recording_end_frame = self.current_playback_frame # Initialiser la fin à la même position
 
             # Ne pas réinitialiser la position de lecture ici
-            # self.current_playback_frame = 0 
-            # for track in self.tracks:
-            #     track.reset_playback_position() 
-
             self.is_playing = True # Démarrer la lecture pour le monitoring pendant l'enregistrement
             print(f"Player: Enregistrement démarré à la frame {self.recording_start_frame}.")
 
@@ -237,9 +231,36 @@ class AdikPlayer:
                     new_take_channels=self.num_input_channels # <<< NOUVEAU
                 )
                 print(f"Player: Enregistrement arrangé sur la piste '{selected_track.name}'.")
+                # --- Mettre à jour la position de lecture de la piste ---
+                # On ajuste la position de lecture de la piste à la position globale du player.
+                # Cela permet de garantir qu'elle est bien synchronisée avec le reste des pistes.
+                selected_track.set_playback_position(self.current_playback_frame)
+
             else:
                 new_track_name = f"Piste Enregistrée {len(self.tracks) + 1}"
                 new_track = self.add_track(new_track_name)
+                
+                take_length_frames = recorded_sound_data.size // self.num_input_channels
+                converted_data = AdikSound.convert_channels(recorded_sound_data, self.num_input_channels, self.num_output_channels, take_length_frames)
+
+                new_sound = AdikSound(
+                    name=f"adik_rec_{time.strftime('%H%M%S')}",
+                    audio_data=converted_data,
+                    sample_rate=self.sample_rate,
+                    num_channels=self.num_output_channels
+                )
+                new_track.set_audio_sound(new_sound, offset_frames=self.recording_start_frame)
+                print(f"Player: Enregistrement ajouté à une nouvelle piste '{new_track.name}' à la frame {self.recording_start_frame}.")
+                
+                # --- Mettre à jour la position de lecture de la nouvelle piste ---
+                new_track.set_playback_position(self.current_playback_frame)
+            
+            self._update_total_duration_cache()
+            self.recording_buffer = np.array([], dtype=np.float32)
+        else:
+            print("Player: Le buffer d'enregistrement est vide. Rien à finaliser.")
+        
+        print("Player: Enregistrement finalisé.")
 
     #----------------------------------------
 
