@@ -391,8 +391,7 @@ class AdikPlayer:
 
     def _audio_callback(self, indata, outdata, frames, time_info, status):
         """
-        Le callback audio principal appelé par sounddevice.
-        Optimisé pour la performance et une gestion fine du verrou.
+        Le callback audio principal.
         """
         if status:
             print(f"Status du callback audio: {status}", flush=True)
@@ -404,31 +403,27 @@ class AdikPlayer:
                 self.recording_buffer = np.append(self.recording_buffer, indata.astype(np.float32).flatten())
 
             # 2. Si le player n'est pas en lecture, on remplit le buffer de sortie avec des zéros.
-            # L'opération doit être la plus rapide possible.
             if not self.is_playing: 
                 outdata.fill(0.0)
-                # La logique pour le mode pause se termine ici, ce qui libère le verrou
-                # rapidement et évite tout risque d'underflow.
                 return
 
             # 3. Le reste de la logique ne s'exécute que si self.is_playing est True
             
-            # Initialisation du buffer de sortie avec des zéros.
             output_buffer = np.zeros(frames * self.num_output_channels, dtype=np.float32)
 
             solo_active = any(track.is_solo for track in self.tracks)
 
             for track in self.tracks:
+                # La position de la piste est gérée dans get_audio_block()
+                should_mix_track = True
                 if track.is_muted:
-                    continue
+                    should_mix_track = False
                 if solo_active and not track.is_solo:
-                    continue
-                    
-                # Utiliser la nouvelle propriété `track.is_armed`
+                    should_mix_track = False
                 if track.is_armed and self.is_recording and self.recording_mode == AdikTrack.RECORDING_MODE_REPLACE:
-                    continue
+                    should_mix_track = False
                 
-                if track.audio_sound and track.audio_sound.audio_data.size > 0:
+                if should_mix_track and track.audio_sound and track.audio_sound.audio_data.size > 0:
                     try:
                         track_block = track.get_audio_block(frames)
                         
@@ -436,9 +431,13 @@ class AdikPlayer:
                             output_buffer += track_block
                         else:
                             print(f"Avertissement: Taille de bloc de piste inattendue. Piste {track.name}.")
-
                     except Exception as e:
                         print(f"Erreur lors de la génération du bloc pour la piste {track.name}: {e}")
+                else:
+                    # Même si la piste n'est pas jouée, il faut quand même appeler get_audio_block
+                    # pour que sa position de lecture soit mise à jour.
+                    # On ignore simplement le résultat.
+                    track.get_audio_block(frames)
                         
             outdata[:] = output_buffer.reshape((frames, self.num_output_channels))
 
