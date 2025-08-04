@@ -11,6 +11,7 @@ class AdikMixer:
 
     def mix_buffers(self, input_buffers, num_frames):
         """
+        Function dépréciée, n'est plus utilisée
         Mixe plusieurs buffers d'entrée en un seul buffer de sortie.
         'input_buffers' est une liste de tableaux NumPy (chaque élément étant les données d'une piste).
         'num_frames_per_buffer' est le nombre de frames (samples par canal) attendu dans le buffer de sortie.

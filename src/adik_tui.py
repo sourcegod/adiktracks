@@ -197,6 +197,9 @@ class MainWindow:
                 self.display_status(f"Piste '{track_name}' supprimée.")
             else:
                 self.display_status("Aucune piste sélectionnée à supprimer.")
+        elif key == ord('l'): # l
+            self.player.toggle_loop()
+
         elif key == ord('r') or key == ord('R'): # R: Enregistrement
             if self.player.is_recording:
                 self.player.stop_recording()
@@ -233,6 +236,9 @@ class MainWindow:
         elif key == ord('>'): # >: Aller à la fin
             self.player.goto_end()
             self.display_status("Aller à la fin.")
+        elif key == 12: # Ctrl+L
+            self.player.set_loop_points(0, 30)
+
         elif key == 20: # Ctrl+T: Ajouter une piste
             self.player.add_track()
             self.display_status("Nouvelle piste ajoutée.")

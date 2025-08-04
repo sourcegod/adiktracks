@@ -313,32 +313,6 @@ class AdikTrack:
 
     #----------------------------------------
 
-
-    '''
-    def write_sound_data_old(self, output_data, num_frames):
-        """ copie le block audio dans le tampon de sortie """
-        vol = self.volume * self.volume_mix
-        left_gain = self.left_gain
-        right_gain = self.right_gain
-        num_channels = self.audio_sound.num_channels
-        # On avance d'un block que la piste soit mutée ou non
-        input_data = self.get_audio_block(num_frames)
-        # output_data += input_data
-       
-        # print(f"voici input_data: size: {input_data.size}, shape: {input_data.shape}, num_frames: {num_frames}, num_channels: {self.audio_sound.num_channels}")
-        # Note: pour l'instant, tous les sons des pistes renvoient 2 canaux après convertion, 
-        # et num_frames est le nombre de frames à renvoyer pour un canal
-        # et les deux blocks à additionner devraient être de même taille
-        if input_data.size == output_data.size:
-            for i in range(0, output_data.size, 2):
-                val = input_data[i] * vol
-                output_data[i] += val * left_gain
-                val = input_data[i+1] * vol
-                output_data[i+1] += val * right_gain
-
-
-    #----------------------------------------
-    '''
     def reset_playback_position(self):
         # Réinitialise à l'offset, pas à 0
         self.playback_position = self.offset_frames

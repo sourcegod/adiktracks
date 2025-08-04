@@ -40,8 +40,13 @@ class AdikPlayer:
 
         # total_duration_seconds et current_time_seconds seront gérés comme des propriétés (voir plus bas)
         self.total_duration_seconds_cached = 0.0 # Cache pour la durée totale
+        self.total_duration_frames_cached = 0
         
         self._lock = threading.Lock() # Verrou pour protéger les accès concurrents
+
+        self.is_looping = False
+        self.loop_start_frame = 0
+        self.loop_end_frame = 0
         
         print(f"AdikPlayer initialisé (SR: {self.sample_rate}, Block Size: {self.block_size}, Out Channels: {self.num_output_channels}, In Channels: {self.num_input_channels})")
     #----------------------------------------
@@ -92,14 +97,20 @@ class AdikPlayer:
     #----------------------------------------
 
     def _update_total_duration_cache(self):
-        """Met à jour le cache de la durée totale du projet."""
-        max_dur = 0.0
+        """
+        Met à jour la durée totale du projet en se basant sur les pistes existantes.
+        """
+        # with self._lock:
+        max_duration_frames = 0
         for track in self.tracks:
             if track.audio_sound:
-                # La durée d'une piste est son contenu + son offset
-                end_frame = track.offset_frames + len(track.audio_sound.audio_data) // track.audio_sound.num_channels
-                max_dur = max(max_dur, end_frame / self.sample_rate)
-        self.total_duration_seconds_cached = max_dur
+                track_end_frame = track.offset_frames + track.audio_sound.get_length_frames()
+                if track_end_frame > max_duration_frames:
+                    max_duration_frames = track_end_frame
+        
+        # Mise à jour des deux propriétés
+        self.total_duration_frames_cached = max_duration_frames
+        self.total_duration_seconds_cached = max_duration_frames / self.sample_rate
 
     #----------------------------------------
 
@@ -389,6 +400,61 @@ class AdikPlayer:
 
     #----------------------------------------
 
+    # --- gestion de la boucle ---
+    def set_loop_points(self, start_time_seconds, end_time_seconds):
+        """
+        Définit les points de début et de fin de la boucle en secondes.
+        La conversion en frames est gérée automatiquement.
+        Les points sont automatiquement bornés entre 0 et la durée totale du projet.
+        """
+        with self._lock:
+            self._update_total_duration_cache()
+            
+            # Utilisation directe de la valeur en frames mise en cache
+            total_duration_frames = self.total_duration_frames_cached
+
+            # Conversion des secondes en frames
+            start_frame = int(start_time_seconds * self.sample_rate)
+            end_frame = int(end_time_seconds * self.sample_rate)
+            
+            # Bornage automatique des points de bouclage
+            if start_frame < 0:
+                start_frame = 0
+            
+            if end_frame > total_duration_frames:
+                end_frame = total_duration_frames
+
+            # Validation des points de bouclage
+            if end_frame <= start_frame:
+                print("Erreur: Le point de fin de la boucle doit être supérieur au point de début.")
+                return False
+
+            # Mettre à jour les propriétés
+            self.loop_start_frame = start_frame
+            self.loop_end_frame = end_frame
+            self.is_looping = True
+            
+            print(f"Player: Boucle activée de {self.loop_start_frame} à {self.loop_end_frame} frames.")
+            return True
+
+    #----------------------------------------
+
+    def toggle_loop(self):
+        """Active ou désactive le mode boucle."""
+        with self._lock:
+            if self.is_looping:
+                self.is_looping = False
+                print("Player: Boucle désactivée.")
+            else:
+                # Vérifier si les points de bouclage sont valides avant d'activer la boucle
+                if self.loop_end_frame > self.loop_start_frame:
+                    self.is_looping = True
+                    print("Player: Boucle activée.")
+                else:
+                    print("Erreur: Les points de bouclage ne sont pas valides. Utilisez set_loop_points d'abord.")
+
+    #----------------------------------------
+
     def _audio_callback(self, indata, outdata, num_frames, time_info, status):
         """
         Le callback audio principal.
@@ -397,6 +463,8 @@ class AdikPlayer:
             print(f"Status du callback audio: {status}", flush=True)
             beep()
             
+        # Note: pour l'instant nous avons le message status: output underflow, qui est dû en grande partie à l'utilisation de la synthèse vocale du lecteur d'écran, 
+        # et non pas au vérouillage des processus: _lock.
         with self._lock:
             # 1. Traitement de l'enregistrement
             if self.is_recording and indata is not None and indata.size > 0:
@@ -422,7 +490,7 @@ class AdikPlayer:
                     should_mix_track = False
                 if track.is_armed and track.is_recording and track.recording_mode == track.RECORDING_MODE_REPLACE:
                     should_mix_track = False
-  
+
                 if not should_mix_track:
                     # Même si la piste n'est pas jouée, il faut quand même appeler get_audio_block
                     # pour que sa position de lecture soit mise à jour.
@@ -437,6 +505,36 @@ class AdikPlayer:
                        
             outdata[:] = output_buffer.reshape((num_frames, self.num_output_channels))
 
+            # --- LOGIQUE POUR LE BOUCLAGE ---
+            # 1. Mettre à jour la position de lecture du player
+            self.current_playback_frame += num_frames
+
+            # 2. Gérer le bouclage
+            if self.is_looping and self.current_playback_frame >= self.loop_end_frame:
+                self.current_playback_frame = self.loop_start_frame
+                # Il faut également s'assurer que les pistes sont repositionnées
+                for track in self.tracks:
+                    track.playback_position = self.current_playback_frame
+                print(f"Player: Boucle terminée, repositionnement à {self.current_playback_frame} frames.")
+
+            # 3. Gérer l'arrêt en fin de lecture si le bouclage n'est pas actif
+            elif not self.is_looping:
+                # On vérifie si toutes les pistes sont terminées (logique déjà existante)
+                all_tracks_finished = True
+                for track in self.tracks:
+                    if track.audio_sound:
+                        if self.current_playback_frame < (track.offset_frames + track.audio_sound.get_length_frames()):
+                            all_tracks_finished = False
+                            break
+                
+                if all_tracks_finished and not self.is_recording: 
+                    print("Player: Toutes les pistes ont fini de jouer. Arrêt automatique.")
+                    self.is_playing = False
+
+            self.current_time_seconds_cached = self.current_playback_frame / self.sample_rate
+
+
+            """
             self.current_playback_frame += num_frames
             self.current_time_seconds_cached = self.current_playback_frame / self.sample_rate
 
@@ -450,6 +548,7 @@ class AdikPlayer:
             if all_tracks_finished and not self.is_recording: 
                 print("Player: Toutes les pistes ont fini de jouer. Arrêt automatique.")
                 self.is_playing = False
+            """
                 
     #----------------------------------------
 
