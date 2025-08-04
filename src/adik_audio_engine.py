@@ -4,7 +4,6 @@ import numpy as np
 import threading # Si nécessaire, mais sounddevice gère déjà son thread
 
 class AdikAudioEngine:
-    # def __init__(self, sample_rate=44100, block_size=1024, num_output_channels=2):
     def __init__(self, sample_rate=44100, block_size=1024, num_output_channels=2, num_input_channels=1):
         self.sample_rate = sample_rate
         self.block_size = block_size
@@ -69,6 +68,7 @@ class AdikAudioEngine:
     #----------------------------------------
 
     """
+    Deprecated function, for output stream only
     def start_stream(self):
         # Démarre le stream audio.
         if self.stream and self.stream.active:

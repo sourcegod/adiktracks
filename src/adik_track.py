@@ -21,7 +21,10 @@ class AdikTrack:
         self.playback_position = 0 # Position de lecture actuelle en FRAMES (non en samples)
         self.offset_frames = 0 # Offset en frames pour le début du son sur la piste
 
-        self.volume = 1.0 # Gain linéaire (0.0 à 1.0)
+        self.volume = 1.0 # Volume linéaire (0.0 à 1.0)
+        self.volume_mix = 0.8 # volume global
+        self.left_gain =1.0
+        self.right_gain =1.0
         self.pan = 0.0     # Panoramique (-1.0 pour gauche, 0.0 pour centre, 1.0 pour droite)
 
         self.is_muted = False
@@ -263,6 +266,79 @@ class AdikTrack:
 
     #----------------------------------------
 
+    def write_sound_data(self, output_data, num_frames):
+        """
+        Copie le bloc audio de la piste dans le tampon de sortie tout en appliquant
+        le volume et le panoramique. Cette fonction est conçue pour être extensible
+        aux effets plus complexes.
+        """
+
+        try:
+            # Récupérer le bloc audio de la piste
+            input_data = self.get_audio_block(num_frames)
+            
+            # Paramètres de gain
+            vol = self.volume * self.volume_mix
+            left_gain = self.left_gain
+            right_gain = self.right_gain
+            
+            # Assurer que les buffers ont la même taille avant de mixer
+            if input_data.size != output_data.size:
+                print(f"Avertissement: Les buffers de mixage ne sont pas de la même taille ({input_data.size} vs {output_data.size}).")
+                return
+
+            # Traitement en fonction du nombre de canaux de la piste
+            if self.num_channels == 1:
+                # Piste MONO
+                # Le son mono est réparti sur les deux canaux de sortie
+                for i in range(num_frames):
+                    # Chaque échantillon est appliqué sur les canaux gauche et droit
+                    mono_sample = input_data[i]
+                    # La sortie est en stéréo (deux échantillons par frame)
+                    output_data[i*2] += mono_sample * vol * left_gain      # Canal gauche
+                    output_data[i*2+1] += mono_sample * vol * right_gain    # Canal droit
+            elif self.num_channels == 2:
+                # Piste STEREO
+                # Le son stéréo est appliqué directement sur les canaux de sortie
+                for i in range(0, input_data.size, 2):
+                    # Appliquer le gain au canal gauche
+                    output_data[i] += input_data[i] * vol * left_gain
+                    # Appliquer le gain au canal droit
+                    output_data[i+1] += input_data[i+1] * vol * right_gain
+            else:
+                print(f"Erreur: Le nombre de canaux ({self.num_channels}) n'est pas supporté pour le mixage.")
+            
+        except Exception as e:
+            print(f"Erreur dans write_sound_data pour la piste {self.name}: {e}")
+
+    #----------------------------------------
+
+
+    '''
+    def write_sound_data_old(self, output_data, num_frames):
+        """ copie le block audio dans le tampon de sortie """
+        vol = self.volume * self.volume_mix
+        left_gain = self.left_gain
+        right_gain = self.right_gain
+        num_channels = self.audio_sound.num_channels
+        # On avance d'un block que la piste soit mutée ou non
+        input_data = self.get_audio_block(num_frames)
+        # output_data += input_data
+       
+        # print(f"voici input_data: size: {input_data.size}, shape: {input_data.shape}, num_frames: {num_frames}, num_channels: {self.audio_sound.num_channels}")
+        # Note: pour l'instant, tous les sons des pistes renvoient 2 canaux après convertion, 
+        # et num_frames est le nombre de frames à renvoyer pour un canal
+        # et les deux blocks à additionner devraient être de même taille
+        if input_data.size == output_data.size:
+            for i in range(0, output_data.size, 2):
+                val = input_data[i] * vol
+                output_data[i] += val * left_gain
+                val = input_data[i+1] * vol
+                output_data[i+1] += val * right_gain
+
+
+    #----------------------------------------
+    '''
     def reset_playback_position(self):
         # Réinitialise à l'offset, pas à 0
         self.playback_position = self.offset_frames

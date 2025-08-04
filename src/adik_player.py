@@ -389,7 +389,7 @@ class AdikPlayer:
 
     #----------------------------------------
 
-    def _audio_callback(self, indata, outdata, frames, time_info, status):
+    def _audio_callback(self, indata, outdata, num_frames, time_info, status):
         """
         Le callback audio principal.
         """
@@ -409,39 +409,35 @@ class AdikPlayer:
 
             # 3. Le reste de la logique ne s'exécute que si self.is_playing est True
             
-            output_buffer = np.zeros(frames * self.num_output_channels, dtype=np.float32)
+            output_buffer = np.zeros(num_frames * self.num_output_channels, dtype=np.float32)
 
             solo_active = any(track.is_solo for track in self.tracks)
 
             for track in self.tracks:
                 # La position de la piste est gérée dans get_audio_block()
                 should_mix_track = True
-                if track.is_muted:
-                    should_mix_track = False
                 if solo_active and not track.is_solo:
                     should_mix_track = False
-                if track.is_armed and self.is_recording and self.recording_mode == AdikTrack.RECORDING_MODE_REPLACE:
+                if track.is_muted:
                     should_mix_track = False
-                
-                if should_mix_track and track.audio_sound and track.audio_sound.audio_data.size > 0:
-                    try:
-                        track_block = track.get_audio_block(frames)
-                        
-                        if track_block.size == output_buffer.size:
-                            output_buffer += track_block
-                        else:
-                            print(f"Avertissement: Taille de bloc de piste inattendue. Piste {track.name}.")
-                    except Exception as e:
-                        print(f"Erreur lors de la génération du bloc pour la piste {track.name}: {e}")
-                else:
+                if track.is_armed and track.is_recording and track.recording_mode == track.RECORDING_MODE_REPLACE:
+                    should_mix_track = False
+  
+                if not should_mix_track:
                     # Même si la piste n'est pas jouée, il faut quand même appeler get_audio_block
                     # pour que sa position de lecture soit mise à jour.
                     # On ignore simplement le résultat.
-                    track.get_audio_block(frames)
-                        
-            outdata[:] = output_buffer.reshape((frames, self.num_output_channels))
+                    track.get_audio_block(num_frames)
+                elif should_mix_track and track.audio_sound and track.audio_sound.audio_data.size > 0:
+                    try:
+                        # track_block = track.get_audio_block(num_frames)
+                        track.write_sound_data(output_buffer, num_frames)
+                    except Exception as e:
+                        print(f"Erreur lors de la génération du bloc pour la piste {track.name}: {e}")
+                       
+            outdata[:] = output_buffer.reshape((num_frames, self.num_output_channels))
 
-            self.current_playback_frame += frames
+            self.current_playback_frame += num_frames
             self.current_time_seconds_cached = self.current_playback_frame / self.sample_rate
 
             all_tracks_finished = True
