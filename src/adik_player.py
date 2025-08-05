@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # adik_player.py
 import numpy as np
 import threading
@@ -47,6 +48,7 @@ class AdikPlayer:
         self.is_looping = False
         self.loop_start_frame = 0
         self.loop_end_frame = 0
+        self.loop_mode =0 # 0: mode normal pour boucler sur le player entier, 1: Custom: pour boucler d'un poin à un autre
         
         print(f"AdikPlayer initialisé (SR: {self.sample_rate}, Block Size: {self.block_size}, Out Channels: {self.num_output_channels}, In Channels: {self.num_input_channels})")
     #----------------------------------------
@@ -58,7 +60,9 @@ class AdikPlayer:
         track = AdikTrack(name=name, sample_rate=self.sample_rate, num_channels=self.num_output_channels)
         self.tracks.append(track)
         self.select_track(len(self.tracks) - 1) # Sélectionne la nouvelle piste par défaut
-        self._update_total_duration_cache() # Mettre à jour la durée totale
+        # self._update_total_duration_cache() # Mettre à jour la durée totale
+        # Mettre à jour la durée totale et d'autres paramètres
+        self._update_params()
         print(f"Piste ajoutée: {track.name}")
         return track
 
@@ -72,7 +76,8 @@ class AdikPlayer:
                 self.selected_track_idx = max(-1, len(self.tracks) - 1) # Plus de piste sélectionnée si c'était celle-là
             elif self.selected_track_idx > track_idx:
                 self.selected_track_idx -= 1 # Ajuster l'index si une piste avant a été supprimée
-            self._update_total_duration_cache() # Mettre à jour la durée totale
+            # self._update_total_duration_cache() # Mettre à jour la durée totale
+            self._update_params()
             return True
         print(f"Erreur: Index de piste invalide ({track_idx}) pour la suppression.")
         return False
@@ -111,6 +116,16 @@ class AdikPlayer:
         # Mise à jour des deux propriétés
         self.total_duration_frames_cached = max_duration_frames
         self.total_duration_seconds_cached = max_duration_frames / self.sample_rate
+
+    #----------------------------------------
+    
+    def _update_params(self):
+        """ mise à jour des paramètres importants du player """
+        self._update_total_duration_cache()
+        if self.loop_mode == 0: # mode normal
+            # update loop params
+            self.loop_start_frame =0
+            self.loop_end_frame = self.total_duration_frames_cached
 
     #----------------------------------------
 
@@ -266,7 +281,8 @@ class AdikPlayer:
                 # --- Mettre à jour la position de lecture de la nouvelle piste ---
                 new_track.set_playback_position(self.current_playback_frame)
             
-            self._update_total_duration_cache()
+            # self._update_total_duration_cache()
+            self._update_params()
             self.recording_buffer = np.array([], dtype=np.float32)
         else:
             print("Player: Le buffer d'enregistrement est vide. Rien à finaliser.")
@@ -410,6 +426,7 @@ class AdikPlayer:
         with self._lock:
             self._update_total_duration_cache()
             
+            
             # Utilisation directe de la valeur en frames mise en cache
             total_duration_frames = self.total_duration_frames_cached
 
@@ -447,6 +464,8 @@ class AdikPlayer:
                 print("Player: Boucle désactivée.")
             else:
                 # Vérifier si les points de bouclage sont valides avant d'activer la boucle
+                self._update_params()
+                print(f"loop_start: {self.loop_start_frame}, loop_end: {self.loop_end_frame}")
                 if self.loop_end_frame > self.loop_start_frame:
                     self.is_looping = True
                     print("Player: Boucle activée.")
@@ -533,23 +552,6 @@ class AdikPlayer:
 
             self.current_time_seconds_cached = self.current_playback_frame / self.sample_rate
 
-
-            """
-            self.current_playback_frame += num_frames
-            self.current_time_seconds_cached = self.current_playback_frame / self.sample_rate
-
-            all_tracks_finished = True
-            for track in self.tracks:
-                if track.audio_sound:
-                    if self.current_playback_frame < (track.offset_frames + track.audio_sound.get_length_frames()):
-                        all_tracks_finished = False
-                        break
-            
-            if all_tracks_finished and not self.is_recording: 
-                print("Player: Toutes les pistes ont fini de jouer. Arrêt automatique.")
-                self.is_playing = False
-            """
-                
     #----------------------------------------
 
     '''
@@ -644,6 +646,13 @@ class AdikPlayer:
 
     #----------------------------------------
 
+    @property
+    def total_duration_frames(self):
+        """Retourne la durée totale du projet en frames."""
+        return self.total_duration_frames_cached
+
+    #----------------------------------------
+    
     @property
     def total_duration_seconds(self):
         """Retourne la durée totale du projet en secondes."""
