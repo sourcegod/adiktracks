@@ -56,6 +56,7 @@ class AdikPlayer:
         self.is_clicking = False
         self.beat_count =0
         self.next_click_frame = 0
+        self.metronome_playback_frame = 0 # Nouvelle variable pour la position du métronome
 
         self.metronome_thread = None
         self.thread_stop_event = threading.Event()
@@ -547,12 +548,20 @@ class AdikPlayer:
     #----------------------------------------
 
     def toggle_click(self):
-        """Active ou désactive le métronome."""
+        """
+        Active ou désactive le métronome.
+        Si le player est en pause, la position du métronome est réinitialisée à 0.
+        """
         with self._lock:
             self.is_clicking = not self.is_clicking
             if self.is_clicking:
-                # Réinitialiser la position du métronome au début
-                self.next_click_frame =0 #  self.current_playback_frame
+                # Réinitialiser la position du métronome.
+                # Si le player est en lecture, on synchronise avec lui.
+                # Sinon, on le réinitialise à 0 pour un départ immédiat.
+                if self.is_playing:
+                    self.metronome_playback_frame = self.current_playback_frame
+                else:
+                    self.metronome_playback_frame = 0
                 print("Player: Métronome activé.")
             else:
                 print("Player: Métronome désactivé.")
@@ -584,105 +593,96 @@ class AdikPlayer:
     # --- Gestion du Callback ---
     def _audio_callback(self, indata, outdata, num_frames, time_info, status):
         """
-        Le callback audio principal.
+        Le callback audio principal, avec une gestion améliorée du métronome.
         """
         if status:
             print(f"Status du callback audio: {status}", flush=True)
             beep()
             
-        # Note: pour l'instant nous avons le message status: output underflow, qui est dû en grande partie à l'utilisation de la synthèse vocale du lecteur d'écran, 
-        # et non pas au vérouillage des processus: _lock.
         with self._lock:
             # 1. Traitement de l'enregistrement
             if self.is_recording and indata is not None and indata.size > 0:
                 self.recording_buffer = np.append(self.recording_buffer, indata.astype(np.float32).flatten())
 
-            # 2. Remplissage du buffer de sortie
+            # 2. Remplissage du buffer de sortie avec des zéros
             output_buffer = np.zeros(num_frames * self.num_output_channels, dtype=np.float32)
 
-            # 3. Logique du métronome
+            # 3. Logique du métronome (déclenchement du clic)
             if self.is_clicking:
-                # Pour le mode autonome, le métronome a son propre compteur
-                # qui avance de manière indépendante du player.
-                # print(f"frames_per_beat: {self.frames_per_beat}")
-                if self.is_playing:
-                    self.next_click_frame = self.current_playback_frame % self.frames_per_beat
-                    if self.next_click_frame + num_frames >= self.frames_per_beat:
-                        self.play_click()
+                # Si le métronome vient d'être démarré et que la position est à zéro, on clique immédiatement.
+                if self.metronome_playback_frame == 0:
+                    self.play_click()
                 else:
-                    if self.next_click_frame == 0 or self.next_click_frame >= self.frames_per_beat:
-                        self.play_click()
-                        self.next_click_frame =0
+                    current_beat_index = self.metronome_playback_frame // self.frames_per_beat
+                    next_beat_index = (self.metronome_playback_frame + num_frames) // self.frames_per_beat
                     
-                if not self.is_playing:
-                    self.next_click_frame += num_frames 
+                    # S'il y a un changement de battement dans ce bloc, on clique.
+                    if current_beat_index < next_beat_index:
+                        self.play_click()
+            
 
-
-            # 4. Si le player n'est pas en lecture, on remplit le buffer de sortie avec des zéros.
-            if not self.is_playing: 
-                outdata.fill(0.0)
-                return
-
-            # 5. Traitement de la lecture si le player est en mode PLAY
+            # 4. Traitement de la lecture si le player est en mode PLAY
             if self.is_playing:
                 solo_active = any(track.is_solo for track in self.tracks)
 
                 for track in self.tracks:
-                    # La position de la piste est gérée dans get_audio_block()
                     should_mix_track = True
                     if solo_active and not track.is_solo:
                         should_mix_track = False
                     if track.is_muted:
                         should_mix_track = False
-                    if track.is_armed and track.is_recording and track.recording_mode == track.RECORDING_MODE_REPLACE:
+                    if track.is_armed and self.is_recording and track.recording_mode == track.RECORDING_MODE_REPLACE:
                         should_mix_track = False
 
-                    if not should_mix_track:
-                        # Même si la piste n'est pas jouée, il faut quand même appeler get_audio_block
-                        # pour que sa position de lecture soit mise à jour.
-                        # On ignore simplement le résultat.
+                    if should_mix_track:
+                        if track.audio_sound and track.audio_sound.audio_data.size > 0:
+                            try:
+                                track.write_sound_data(output_buffer, num_frames)
+                            except Exception as e:
+                                print(f"Erreur lors de l'appel de write_sound_data pour la piste {track.name}: {e}")
+                        else:
+                            track.get_audio_block(num_frames)
+                    else:
                         track.get_audio_block(num_frames)
-                    elif should_mix_track and track.audio_sound and track.audio_sound.audio_data.size > 0:
-                        try:
-                            # track_block = track.get_audio_block(num_frames)
-                            track.write_sound_data(output_buffer, num_frames)
-                        except Exception as e:
-                            print(f"Erreur lors de la génération du bloc pour la piste {track.name}: {e}")
-                           
-                outdata[:] = output_buffer.reshape((num_frames, self.num_output_channels))
-
-                # --- LOGIQUE POUR LE BOUCLAGE ---
-                # 1. Mettre à jour la position de lecture du player
+                
+                # Mettre à jour la position du player et du métronome uniquement en mode lecture
                 self.current_playback_frame += num_frames
+                self.metronome_playback_frame = self.current_playback_frame
+                self.current_time_seconds_cached = self.current_playback_frame / self.sample_rate
 
-                # 2. Gérer le bouclage
+                # Gérer le bouclage
                 if self.is_looping and self.current_playback_frame >= self.loop_end_frame:
                     self.current_playback_frame = self.loop_start_frame
-                    # Il faut également s'assurer que les pistes sont repositionnées
+                    self.metronome_playback_frame = self.current_playback_frame
                     for track in self.tracks:
                         track.playback_position = self.current_playback_frame
                     print(f"Player: Boucle terminée, repositionnement à {self.current_playback_frame} frames.")
-
-                # 3. Gérer l'arrêt en fin de lecture si le bouclage n'est pas actif
+                
+                # Gérer l'arrêt en fin de lecture si le bouclage n'est pas actif
                 elif not self.is_looping:
-                    # On vérifie si toutes les pistes sont terminées (logique déjà existante)
                     all_tracks_finished = True
                     for track in self.tracks:
                         if track.audio_sound:
                             if self.current_playback_frame < (track.offset_frames + track.audio_sound.get_length_frames()):
                                 all_tracks_finished = False
                                 break
-                    
-                    if all_tracks_finished and not self.is_recording: 
+                    if all_tracks_finished and not self.is_recording:
                         print("Player: Toutes les pistes ont fini de jouer. Arrêt automatique.")
                         self.is_playing = False
+            
+            # Mettre à jour la position du métronome même si le player est en pause
+            else: # not self.is_playing
+                self.metronome_playback_frame += num_frames
 
-                self.current_time_seconds_cached = self.current_playback_frame / self.sample_rate
+            outdata[:] = output_buffer.reshape((num_frames, self.num_output_channels))
 
     #----------------------------------------
 
+
+
     '''
     def _audio_callback_old(self, indata, outdata, frames, time_info, status):
+        # Deprecated function, keeping for archive backup only
         """
         Deprecated function
         Le callback audio principal appelé par sounddevice.
