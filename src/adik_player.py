@@ -56,8 +56,8 @@ class AdikPlayer:
         self.is_clicking = False
         self.beat_count =0
         self.metronome_playback_frame = 0 # Nouvelle variable pour la position du métronome
-        self.click_sound_data = None
-        self.click_sound_data_2 = None # Son du temps faible
+        self.strong_beat_click_data = None  # Son du temps fort (880 Hz)
+        self.weak_beat_click_data = None    # Son du temps faible (440 Hz)
 
         self.click_sound_position = 0
         self.is_click_playing = False
@@ -526,11 +526,33 @@ class AdikPlayer:
 
     def _update_click_sound(self):
         """
-        Génère les deux sons de clic sinusoïdaux pour le métronome.
-        Son 1 (temps fort) : 440 Hz
-        Son 2 (temps faible) : 880 Hz
-        Durée : 50 millisecondes pour les deux.
+        Génère les deux sons de clic sinusoïdaux en utilisant AdikSound.sine_wave.
+        Son du temps fort : 880 Hz, 50 ms.
+        Son du temps faible : 440 Hz, 50 ms.
         """
+        click_duration_seconds = 0.050 # 50 ms
+        amplitude = 0.2
+        
+        # Génération du son du temps fort
+        self.strong_beat_click_data = AdikSound.sine_wave(
+            freq=880,
+            dur=click_duration_seconds,
+            amp=amplitude,
+            sample_rate=self.sample_rate,
+            num_channels=self.num_output_channels
+        )
+        
+        # Génération du son du temps faible
+        self.weak_beat_click_data = AdikSound.sine_wave(
+            freq=440,
+            dur=click_duration_seconds,
+            amp=amplitude,
+            sample_rate=self.sample_rate,
+            num_channels=self.num_output_channels
+        )
+        
+        """
+        # Keeping for archive 
         click_duration_seconds = 0.050 # 50 ms
         click_frames = int(click_duration_seconds * self.sample_rate)
         
@@ -543,7 +565,9 @@ class AdikPlayer:
         # Génération du son du temps faible
         sine_wave_2 = 0.5 * np.sin(2. * np.pi * 440. * t)
         self.click_sound_data_2 = np.stack([sine_wave_2, sine_wave_2], axis=1).flatten().astype(np.float32)
+        """
 
+  
     #----------------------------------------
 
     def play_click(self):
@@ -575,14 +599,14 @@ class AdikPlayer:
 
         # Sélection du son de clic en fonction du beat_count
         if self.beat_count == 0:
-            click_sound = self.click_sound_data # Son du temps fort
+            click_sound = self.strong_beat_click_data # Son du temps fort
         else:
-            click_sound = self.click_sound_data_2 # Son du temps faible
+            click_sound = self.weak_beat_click_data # Son du temps faible
             
         if click_sound is None:
             return
 
-        click_sound_length_frames = click_sound.size // self.num_output_channels
+        click_sound_length_frames = click_sound.get_length_frames()
         remaining_frames_in_click = click_sound_length_frames - self.click_sound_position
         frames_to_mix = min(num_frames, remaining_frames_in_click)
 
@@ -590,7 +614,7 @@ class AdikPlayer:
             start_index = self.click_sound_position * self.num_output_channels
             end_index = start_index + frames_to_mix * self.num_output_channels
             
-            click_slice = click_sound[start_index:end_index]
+            click_slice = click_sound.audio_data[start_index:end_index]
             
             if click_slice.size == frames_to_mix * self.num_output_channels:
                 output_buffer[:click_slice.size] += click_slice
