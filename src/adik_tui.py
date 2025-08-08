@@ -197,7 +197,9 @@ class MainWindow:
                 self.display_status(f"Piste '{track_name}' supprimée.")
             else:
                 self.display_status("Aucune piste sélectionnée à supprimer.")
-        elif key == ord('l'): # l
+        elif key == ord('k'): # 'k'
+            self.player.toggle_click()
+        elif key == ord('l'): # 'l'
             self.player.toggle_loop()
 
         elif key == ord('r') or key == ord('R'): # R: Enregistrement
