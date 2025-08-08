@@ -53,24 +53,7 @@ class AdikPlayer:
         
         # --- Variables du métronome ---
         self.metronome = AdikMetronome(sample_rate=sample_rate, num_channels=num_output_channels)
-
-        
-        self.tempo_bpm = 120.0
-        """
-        self.frames_per_beat = 0
-        self.is_clicking = False
-        self.beat_count =0
-        self.metronome_playback_frame = 0 # Nouvelle variable pour la position du métronome
-        self.strong_beat_click_data = None  # Son du temps fort (880 Hz)
-        self.weak_beat_click_data = None    # Son du temps faible (440 Hz)
-
-        self.click_sound_position = 0
-        self.is_click_playing = False
-        """
-        
-        self.metronome_thread = None
-        self.thread_stop_event = threading.Event()
-        self.update_tempo()  # Initialiser le tempo au démarrage
+        self.metronome.update_tempo()  # Initialiser le tempo au démarrage
 
         print(f"AdikPlayer initialisé (SR: {self.sample_rate}, Block Size: {self.block_size}, Out Channels: {self.num_output_channels}, In Channels: {self.num_input_channels})")
     #----------------------------------------
@@ -502,7 +485,7 @@ class AdikPlayer:
         """Définit le tempo en BPM et met à jour les frames_per_beat."""
         with self._lock:
             if bpm > 0:
-                self.tempo_bpm = bpm
+                self.metronome.tempo_bpm = bpm
                 self.update_tempo()
             else:
                 print("Erreur: Le BPM doit être une valeur positive.")
@@ -511,145 +494,7 @@ class AdikPlayer:
 
     def get_bpm(self):
         """Retourne le tempo actuel en BPM."""
-        return self.tempo_bpm
-
-    #----------------------------------------
-
-    def update_tempo(self):
-        """
-        Calcule le nombre de frames par battement.
-        Appelée à chaque fois que le BPM est modifié.
-        """
-        # Le calcul est (60 secondes / BPM) * sample_rate
-        frames_per_second = self.sample_rate
-        seconds_per_beat = 60.0 / self.tempo_bpm
-        self.frames_per_beat = int(seconds_per_beat * frames_per_second)
-        self._update_click_sound() # Appel de la nouvelle fonction
-
-        print(f"Player: Tempo mis à jour à {self.tempo_bpm} BPM. ({self.frames_per_beat} frames/battement)")
-
-    #----------------------------------------
-
-    def _update_click_sound(self):
-        """
-        Génère les deux sons de clic sinusoïdaux en utilisant AdikSound.sine_wave.
-        Son du temps fort : 880 Hz, 50 ms.
-        Son du temps faible : 440 Hz, 50 ms.
-        """
-        click_duration_seconds = 0.050 # 50 ms
-        amplitude = 0.2
-        
-        # Génération du son du temps fort
-        self.strong_beat_click_data = AdikSound.sine_wave(
-            freq=880,
-            dur=click_duration_seconds,
-            amp=amplitude,
-            sample_rate=self.sample_rate,
-            num_channels=self.num_output_channels
-        )
-        
-        # Génération du son du temps faible
-        self.weak_beat_click_data = AdikSound.sine_wave(
-            freq=440,
-            dur=click_duration_seconds,
-            amp=amplitude,
-            sample_rate=self.sample_rate,
-            num_channels=self.num_output_channels
-        )
-        
-        """
-        # Keeping for archive 
-        click_duration_seconds = 0.050 # 50 ms
-        click_frames = int(click_duration_seconds * self.sample_rate)
-        
-        t = np.linspace(0., click_duration_seconds, click_frames, endpoint=False)
-        
-        # Génération du son du temps fort (clic principal)
-        sine_wave_1 = 0.5 * np.sin(2. * np.pi * 880. * t)
-        self.click_sound_data = np.stack([sine_wave_1, sine_wave_1], axis=1).flatten().astype(np.float32)
-        
-        # Génération du son du temps faible
-        sine_wave_2 = 0.5 * np.sin(2. * np.pi * 440. * t)
-        self.click_sound_data_2 = np.stack([sine_wave_2, sine_wave_2], axis=1).flatten().astype(np.float32)
-        """
-
-  
-    #----------------------------------------
-
-    def play_click(self):
-        """
-        Déclenche la lecture du bon son de clic du métronome
-        en fonction du beat_count.
-        """
-        self.click_sound_position = 0
-        self.is_click_playing = True
-        
-        if self.beat_count == 0:
-            print(f"C L I C K ! (Temps fort - {self.beat_count})")
-        else:
-            print(f"click (Temps faible - {self.beat_count})")
-            
-        
-        # Ici nous n'avons pas besoin de stocker le son, car la fonction mix_click_data
-        # sera appelée juste après et elle décidera quel son jouer.
-
-    #----------------------------------------
-        
-    def mix_click_data(self, output_buffer, num_frames):
-        """
-        Mixe le son du métronome dans le buffer de sortie audio.
-        Choisit le son de clic en fonction du beat_count.
-        """
-        if not self.is_click_playing:
-            return
-
-        # Sélection du son de clic en fonction du beat_count
-        if self.beat_count == 0:
-            click_sound = self.strong_beat_click_data # Son du temps fort
-        else:
-            click_sound = self.weak_beat_click_data # Son du temps faible
-            
-        if click_sound is None:
-            return
-
-        click_sound_length_frames = click_sound.get_length_frames()
-        remaining_frames_in_click = click_sound_length_frames - self.click_sound_position
-        frames_to_mix = min(num_frames, remaining_frames_in_click)
-
-        if frames_to_mix > 0:
-            start_index = self.click_sound_position * self.num_output_channels
-            end_index = start_index + frames_to_mix * self.num_output_channels
-            
-            click_slice = click_sound.audio_data[start_index:end_index]
-            
-            if click_slice.size == frames_to_mix * self.num_output_channels:
-                output_buffer[:click_slice.size] += click_slice
-
-            self.click_sound_position += frames_to_mix
-
-        if self.click_sound_position >= click_sound_length_frames:
-            self.is_click_playing = False
-            self.click_sound_position = 0
-
-    #----------------------------------------
-
-    def _metronome_runner(self):
-        """
-        Le thread qui exécute le métronome.
-        """
-        print("Metronome: Thread démarré.")
-        self.beat_count = 0
-        while not self.thread_stop_event.is_set():
-            # Jouer le clic du métronome
-            self.play_click()
-            self.beat_count += 1
-            print(f"Metronome: Clic! (Beat {self.beat_count})")
-            
-            # Attendre le temps du prochain battement
-            # On utilise le thread_stop_event.wait() qui peut être interrompu.
-            time_to_wait = 60.0 / self.tempo_bpm
-            self.thread_stop_event.wait(time_to_wait)
-        print("Metronome: Thread arrêté.")
+        return self.metronome.tempo_bpm
 
     #----------------------------------------
 
@@ -661,44 +506,6 @@ class AdikPlayer:
         with self._lock:
             self.metronome.toggle_click(False)
             
-            """
-            self.is_clicking = not self.is_clicking
-            if self.is_clicking:
-                # Réinitialiser la position du métronome et le beat_count.
-                if self.is_playing:
-                    self.metronome_playback_frame = self.current_playback_frame
-                else:
-                    self.metronome_playback_frame = 0
-                    self.is_click_playing = False
-                
-                self.beat_count = 0  # Initialisation du compteur à 0 pour le premier temps fort
-                
-                print("Player: Métronome activé.")
-            else:
-                print("Player: Métronome désactivé.")
-            """
-
-    #----------------------------------------
-
-
-    def toggle_click_with_threading(self):
-        # Deprecated function
-        """Démarre ou arrête le métronome indépendant du player."""
-        with self._lock:
-            if not self.is_clicking:
-                print("Metronome: Démarrage...")
-                self.is_clicking = True
-                self.thread_stop_event.clear()
-                self.metronome_thread = threading.Thread(target=self._metronome_runner)
-                self.metronome_thread.start()
-            else:
-                print("Metronome: Arrêt...")
-                self.is_clicking = False
-                self.thread_stop_event.set()
-                if self.metronome_thread and self.metronome_thread.is_alive():
-                    self.metronome_thread.join()
-                self.metronome_thread = None
-
     #----------------------------------------
 
 
@@ -735,30 +542,8 @@ class AdikPlayer:
                     if self.metronome.playback_frame > 0:
                         self.metronome.play_click()
                         self.metronome._increment_beat_count() # Incrémenter le compteur ici
-                        # self.metronome.beat_count = (self.metronome.beat_count + 1) % 4
-
-
-                """
-                if self.is_clicking:
-                    current_beat_index = self.metronome_playback_frame // self.frames_per_beat
-                    next_beat_index = (self.metronome_playback_frame + num_frames) // self.frames_per_beat
-                    
-                    # Si le métronome vient d'être démarré et que la position est à zéro, on clique immédiatement.
-                    if self.metronome_playback_frame == 0 and not self.is_click_playing:
-                        beep()
-                        self.beat_count =0
-                        self.play_click()
-                    
-                    # Sinon, on détecte le passage au battement suivant
-                    elif current_beat_index < next_beat_index:
-                        self.play_click()
-                        # Mettre à jour le compteur de battements
-                        self.beat_count = (self.beat_count + 1) % 4
-                """
-
                         
             # 4. Mixage du son de clic dans le buffer de sortie
-            # self.mix_click_data(output_buffer, num_frames)
             self.metronome.mix_click_data(output_buffer, num_frames)
            
             # 5. Traitement de la lecture si le player est en mode PLAY

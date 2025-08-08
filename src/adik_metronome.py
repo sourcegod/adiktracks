@@ -1,6 +1,7 @@
 # adik_metronome.py
 import numpy as np
 from adik_sound import AdikSound
+import threading
 
 class AdikMetronome:
     def __init__(self, sample_rate, num_channels):
@@ -16,9 +17,13 @@ class AdikMetronome:
         self.click_sound_position = 0
         self.is_click_playing = False
         self._lock = None  # Le verrou sera géré par AdikPlayer
+        self.metronome_thread = None
+        self.thread_stop_event = threading.Event()
 
         self._update_click_sound()
         self.update_tempo()
+
+    #----------------------------------------
 
     def update_tempo(self, bpm=None):
         """Met à jour le tempo du métronome."""
@@ -30,6 +35,8 @@ class AdikMetronome:
         seconds_per_beat = 60.0 / self.tempo_bpm
         self.frames_per_beat = int(seconds_per_beat * frames_per_second)
         print(f"Metronome: Tempo mis à jour à {self.tempo_bpm} BPM. ({self.frames_per_beat} frames/battement)")
+
+    #----------------------------------------
 
     def _update_click_sound(self):
         """Génère les deux sons de clic du métronome."""
@@ -51,6 +58,8 @@ class AdikMetronome:
             num_channels=self.num_channels
         )
 
+    #----------------------------------------
+
     def toggle_click(self, is_playing):
         """Active ou désactive le métronome."""
         self.is_clicking = not self.is_clicking
@@ -65,10 +74,14 @@ class AdikMetronome:
         else:
             print("Metronome: Désactivé.")
 
+    #----------------------------------------
+
     def play_click(self):
         """Déclenche la lecture du son de clic."""
         self.click_sound_position = 0
         self.is_click_playing = True
+
+    #----------------------------------------
 
     def mix_click_data(self, output_buffer, num_frames):
         """Mixe le son du métronome dans le buffer de sortie."""
@@ -98,10 +111,53 @@ class AdikMetronome:
             self.is_click_playing = False
             self.click_sound_position = 0
 
+    #----------------------------------------
+
     def _increment_beat_count(self):
         """
         Incrémente le compteur de battements et gère le bouclage.
         """
         self.beat_count = (self.beat_count + 1) % 4
 
+    #----------------------------------------
 
+    def _metronome_runner(self):
+        # deprecated function
+        """
+        Le thread qui exécute le métronome.
+        """
+        print("Metronome: Thread démarré.")
+        self.beat_count = 0
+        while not self.thread_stop_event.is_set():
+            # Jouer le clic du métronome
+            self.play_click()
+            self.beat_count += 1
+            print(f"Metronome: Clic! (Beat {self.beat_count})")
+            
+            # Attendre le temps du prochain battement
+            # On utilise le thread_stop_event.wait() qui peut être interrompu.
+            time_to_wait = 60.0 / self.tempo_bpm
+            self.thread_stop_event.wait(time_to_wait)
+        print("Metronome: Thread arrêté.")
+
+    #----------------------------------------
+
+    def toggle_click_with_threading(self):
+        # Deprecated function
+        """Démarre ou arrête le métronome indépendant du player."""
+        with self._lock:
+            if not self.is_clicking:
+                print("Metronome: Démarrage...")
+                self.is_clicking = True
+                self.thread_stop_event.clear()
+                self.metronome_thread = threading.Thread(target=self._metronome_runner)
+                self.metronome_thread.start()
+            else:
+                print("Metronome: Arrêt...")
+                self.is_clicking = False
+                self.thread_stop_event.set()
+                if self.metronome_thread and self.metronome_thread.is_alive():
+                    self.metronome_thread.join()
+                self.metronome_thread = None
+
+    #----------------------------------------
