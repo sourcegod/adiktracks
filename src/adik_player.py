@@ -9,6 +9,7 @@ from adik_sound import AdikSound
 from adik_mixer import AdikMixer
 from adik_wave_handler import AdikWaveHandler # Pour charger/sauvegarder sons
 from adik_audio_engine import AdikAudioEngine 
+from adik_metronome import AdikMetronome
 
 def beep():
     print("\a")
@@ -51,7 +52,11 @@ class AdikPlayer:
         self.loop_mode =0 # 0: mode normal pour boucler sur le player entier, 1: Custom: pour boucler d'un poin à un autre
         
         # --- Variables du métronome ---
+        self.metronome = AdikMetronome(sample_rate=sample_rate, num_channels=num_output_channels)
+
+        
         self.tempo_bpm = 120.0
+        """
         self.frames_per_beat = 0
         self.is_clicking = False
         self.beat_count =0
@@ -61,7 +66,8 @@ class AdikPlayer:
 
         self.click_sound_position = 0
         self.is_click_playing = False
-
+        """
+        
         self.metronome_thread = None
         self.thread_stop_event = threading.Event()
         self.update_tempo()  # Initialiser le tempo au démarrage
@@ -653,6 +659,9 @@ class AdikPlayer:
         Initialise la position du métronome et le compteur de battements.
         """
         with self._lock:
+            self.metronome.toggle_click(False)
+            
+            """
             self.is_clicking = not self.is_clicking
             if self.is_clicking:
                 # Réinitialiser la position du métronome et le beat_count.
@@ -667,6 +676,7 @@ class AdikPlayer:
                 print("Player: Métronome activé.")
             else:
                 print("Player: Métronome désactivé.")
+            """
 
     #----------------------------------------
 
@@ -710,30 +720,52 @@ class AdikPlayer:
             output_buffer = np.zeros(num_frames * self.num_output_channels, dtype=np.float32)
 
             # 3. Logique de déclenchement du métronome
-            if self.is_clicking:
-                current_beat_index = self.metronome_playback_frame // self.frames_per_beat
-                next_beat_index = (self.metronome_playback_frame + num_frames) // self.frames_per_beat
-                
-                # Si le métronome vient d'être démarré et que la position est à zéro, on clique immédiatement.
-                if self.metronome_playback_frame == 0 and not self.is_click_playing:
-                    beep()
-                    self.beat_count =0
-                    self.play_click()
-                
-                # Sinon, on détecte le passage au battement suivant
-                elif current_beat_index < next_beat_index:
-                    self.play_click()
-                    # Mettre à jour le compteur de battements
-                    self.beat_count = (self.beat_count + 1) % 4
+            if self.metronome.is_clicking:
+                current_beat_index = self.metronome.playback_frame // self.metronome.frames_per_beat
+                next_beat_index = (self.metronome.playback_frame + num_frames) // self.metronome.frames_per_beat
 
+                # Si le métronome vient d'être démarré et que la position est à zéro, on clique immédiatement.
+                if self.metronome.playback_frame == 0 and not self.metronome.is_click_playing:
+                    beep()
+                    self.metronome.beat_count =0
+                    self.metronome.play_click()
+                 
+                # Si, on détecte le passage au battement suivant
+                if current_beat_index < next_beat_index:
+                    if self.metronome.playback_frame > 0:
+                        self.metronome.play_click()
+                        self.metronome._increment_beat_count() # Incrémenter le compteur ici
+                        # self.metronome.beat_count = (self.metronome.beat_count + 1) % 4
+
+
+                """
+                if self.is_clicking:
+                    current_beat_index = self.metronome_playback_frame // self.frames_per_beat
+                    next_beat_index = (self.metronome_playback_frame + num_frames) // self.frames_per_beat
                     
+                    # Si le métronome vient d'être démarré et que la position est à zéro, on clique immédiatement.
+                    if self.metronome_playback_frame == 0 and not self.is_click_playing:
+                        beep()
+                        self.beat_count =0
+                        self.play_click()
+                    
+                    # Sinon, on détecte le passage au battement suivant
+                    elif current_beat_index < next_beat_index:
+                        self.play_click()
+                        # Mettre à jour le compteur de battements
+                        self.beat_count = (self.beat_count + 1) % 4
+                """
+
+                        
             # 4. Mixage du son de clic dans le buffer de sortie
-            self.mix_click_data(output_buffer, num_frames)
+            # self.mix_click_data(output_buffer, num_frames)
+            self.metronome.mix_click_data(output_buffer, num_frames)
            
             # 5. Traitement de la lecture si le player est en mode PLAY
             # Mettre à jour la position du métronome même si le player est en pause
             if not self.is_playing:
-                self.metronome_playback_frame += num_frames
+                if self.metronome.is_clicking:
+                    self.metronome.playback_frame += num_frames
 
             else: # self.is_playing 
                 solo_active = any(track.is_solo for track in self.tracks)
@@ -758,7 +790,7 @@ class AdikPlayer:
                     else:
                         track.get_audio_block(num_frames)
                 
-                # Mettre à jour la position du player et du métronome uniquement en mode lecture
+            # Mettre à jour la position du player et du métronome uniquement en mode lecture
                 self.current_playback_frame += num_frames
                 self.metronome_playback_frame = self.current_playback_frame
                 self.current_time_seconds_cached = self.current_playback_frame / self.sample_rate
@@ -766,7 +798,7 @@ class AdikPlayer:
                 # Gérer le bouclage
                 if self.is_looping and self.current_playback_frame >= self.loop_end_frame:
                     self.current_playback_frame = self.loop_start_frame
-                    self.metronome_playback_frame = self.current_playback_frame
+                    self.metronome.playback_frame = self.current_playback_frame
                     for track in self.tracks:
                         track.playback_position = self.current_playback_frame
                     print(f"Player: Boucle terminée, repositionnement à {self.current_playback_frame} frames.")
