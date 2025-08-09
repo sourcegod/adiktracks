@@ -542,15 +542,16 @@ class AdikPlayer:
                     if self.metronome.playback_frame > 0:
                         self.metronome.play_click()
                         self.metronome._increment_beat_count() # Incrémenter le compteur ici
-                        
-            # 4. Mixage du son de clic dans le buffer de sortie
-            self.metronome.mix_click_data(output_buffer, num_frames)
-           
+                            
+                # 4. Mixage du son de clic dans le buffer de sortie
+                self.metronome.mix_click_data(output_buffer, num_frames)
+               
             # 5. Traitement de la lecture si le player est en mode PLAY
             # Mettre à jour la position du métronome même si le player est en pause
             if not self.is_playing:
                 if self.metronome.is_clicking:
                     self.metronome.playback_frame += num_frames
+                    pass
 
             else: # self.is_playing 
                 solo_active = any(track.is_solo for track in self.tracks)
@@ -572,12 +573,12 @@ class AdikPlayer:
                                 print(f"Erreur lors de l'appel de write_sound_data pour la piste {track.name}: {e}")
                         else:
                             track.get_audio_block(num_frames)
-                    else:
+                    else: # not should_mix_track
                         track.get_audio_block(num_frames)
                 
-            # Mettre à jour la position du player et du métronome uniquement en mode lecture
+                # Mettre à jour la position du player et du métronome uniquement en mode lecture
                 self.current_playback_frame += num_frames
-                self.metronome_playback_frame = self.current_playback_frame
+                self.metronome.playback_frame = self.current_playback_frame
                 self.current_time_seconds_cached = self.current_playback_frame / self.sample_rate
 
                 # Gérer le bouclage
