@@ -121,6 +121,25 @@ class AdikMetronome:
 
     #----------------------------------------
 
+    def start_click(self):
+        """Active le métronome."""
+        self.is_clicking = True
+        self.beat_count = 0
+        self.play_frame =0
+        print("Metronome: Activé.")
+
+    #----------------------------------------
+
+    def stop_click(self):
+        """Désactive le métronome."""
+        self.is_clicking = False
+        self.beat_count = 0
+        self.play_frame =0
+        print("Metronome: Désactivé.")
+
+    #----------------------------------------
+
+
     def _metronome_runner(self):
         # deprecated function
         """
