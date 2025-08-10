@@ -12,6 +12,8 @@ class AdikAudioEngine:
 
         self.stream = None
         self._callback_function = None # Le callback que l'engine appellera
+        self.stream_in = None
+        self._input_callback_function = None
 
         try:
             sd.check_output_settings(samplerate=self.sample_rate, channels=self.num_output_channels)
@@ -98,6 +100,41 @@ class AdikAudioEngine:
             self.stream.close() # close() arrête et nettoie
             self.stream = None
             print("Engine: Stream audio arrêté.")
+    #----------------------------------------
+
+    def start_input_stream(self):
+        """ Démarre le stream audio en enregistrement seulement. """
+        if self.stream_in and self.stream_in.active:
+            print("Engine: Stream d'entrée déjà actif.")
+            return
+
+        if self._input_callback_function is None:
+            print("Engine: Aucun callback d'entrée défini. Impossible de démarrer le stream.")
+            return
+
+        try:
+            self.stream_in = sd.InputStream(
+                samplerate=self.sample_rate,
+                blocksize=self.block_size,
+                channels=self.num_input_channels,
+                dtype='float32',
+                callback=self._input_callback_function
+            )
+            self.stream_in.start()
+            print("Engine: Stream d'entrée démarré.")
+        except Exception as e:
+            print(f"Engine: Erreur lors du démarrage du stream d'entrée: {e}.")
+            self.stream_in = None
+
+    #----------------------------------------
+
+    def stop_stream_in(self):
+        """Arrête et ferme le stream audio d'entrée."""
+        if self.stream_in:
+            self.stream_in.close()
+            self.stream_in = None
+            print("Engine: Stream d'entrée arrêté.")
+
     #----------------------------------------
 
     def is_running(self):
