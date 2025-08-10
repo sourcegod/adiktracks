@@ -26,7 +26,10 @@ class AdikPlayer:
         # Instanciez l'Engine et définissez son callback
         self.audio_engine = AdikAudioEngine(sample_rate, block_size, num_output_channels, num_input_channels)
         self._audio_callback = self._audio_output_callback
-        self.audio_engine.set_callback(self._audio_callback) # Le callback du player devient le callback de l'engine
+        # self.audio_engine.set_callback(self._audio_callback) # Le callback du player devient le callback de l'engine
+        self.audio_engine.set_output_callback(self._audio_output_callback)
+        self.audio_engine.set_input_callback(self._audio_input_callback)
+
         self.mixer = AdikMixer(self.sample_rate, self.num_output_channels)
 
         self.tracks = [] # Liste des objets AdikTrack
@@ -512,6 +515,21 @@ class AdikPlayer:
 
 
     # --- Gestion du Callback ---
+    def _audio_input_callback(self, indata, frames, time_info, status):
+        """
+        Callback audio en enregistrement.
+        Cette fonction est exécutée dans un thread séparé.
+        """
+        if status:
+            print(f"Status du callback d'entrée: {status}", flush=True)
+            beep()
+
+        with self._lock:
+            if self.is_recording and indata is not None and indata.size > 0:
+                self.recording_buffer = np.append(self.recording_buffer, indata.astype(np.float32).flatten())
+
+    #----------------------------------------
+
     def _audio_output_callback(self, outdata, num_frames, time_info, status):
         """
         Callback audio en lecture seulement.

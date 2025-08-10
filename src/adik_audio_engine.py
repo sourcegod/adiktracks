@@ -39,6 +39,31 @@ class AdikAudioEngine:
 
     #----------------------------------------
 
+    def set_input_callback(self, callback_func):
+        """
+        Définit la fonction de rappel qui sera appelée par le stream audio.
+        Cette fonction recevra (outdata, frames, time_info, status).
+        """
+        if callable(callback_func):
+            self._input_callback_function = callback_func
+        else:
+            raise ValueError("Le callback fourni n'est pas une fonction callable.")
+
+    #----------------------------------------
+
+    def set_output_callback(self, callback_func):
+        """
+        Définit la fonction de rappel qui sera appelée par le stream audio.
+        Cette fonction recevra (outdata, frames, time_info, status).
+        """
+        if callable(callback_func):
+            self._callback_function = callback_func
+        else:
+            raise ValueError("Le callback fourni n'est pas une fonction callable.")
+
+    #----------------------------------------
+
+
     def start_duplex_stream(self):
         """Démarre le stream audio (maintenant avec support d'entrée/sortie)."""
         if self.stream and self.stream.active:
