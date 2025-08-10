@@ -37,7 +37,7 @@ class AdikAudioEngine:
 
     #----------------------------------------
 
-    def start_stream(self):
+    def start_duplex_stream(self):
         """Démarre le stream audio (maintenant avec support d'entrée/sortie)."""
         if self.stream and self.stream.active:
             print("Engine: Stream audio déjà actif.")
@@ -67,10 +67,8 @@ class AdikAudioEngine:
   
     #----------------------------------------
 
-    """
-    Deprecated function, for output stream only
-    def start_stream(self):
-        # Démarre le stream audio.
+    def start_output_stream(self):
+        """ Démarre le stream audio en lecture seule. """
         if self.stream and self.stream.active:
             print("Engine: Stream audio déjà actif.")
             return
@@ -93,7 +91,6 @@ class AdikAudioEngine:
             print(f"Engine: Erreur lors du démarrage du stream audio: {e}.")
             self.stream = None
     #----------------------------------------
-"""
 
     def stop_stream(self):
         """Arrête et ferme le stream audio."""
