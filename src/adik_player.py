@@ -435,6 +435,8 @@ class AdikPlayer:
         if not self._is_engine_running():
             self.audio_engine.start_output_stream()
             # self.audio_engine.start_duplex_stream()
+            print("Moteur Audio Démarré")
+            beep()
 
     #----------------------------------------
 

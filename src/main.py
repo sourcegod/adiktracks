@@ -160,6 +160,8 @@ def main_curses(stdscr):
         return # Quitter si le son ne peut pas être chargé
         """
 
+    # Démarrer le moteur Audio
+    player._start_engine()
     # Boucle principale de l'application
     running = True
     try: 
