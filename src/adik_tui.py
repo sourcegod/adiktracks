@@ -240,6 +240,8 @@ class MainWindow:
             self.display_status("Aller à la fin.")
         elif key == 12: # Ctrl+L
             self.player.set_loop_points(0, 30)
+        elif key == 18: # Ctrl+R
+            self.player.toggle_recording_mode()
 
         elif key == 20: # Ctrl+T: Ajouter une piste
             self.player.add_track()

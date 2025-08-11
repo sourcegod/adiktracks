@@ -325,6 +325,17 @@ class AdikPlayer:
 
     #----------------------------------------
 
+    def toggle_recording_mode(self):
+        """
+        Bascule entre les modes d'enregistrement REPLACE et MIX.
+        """
+        if self.recording_mode == AdikTrack.RECORDING_MODE_REPLACE:
+            self.set_recording_mode(AdikTrack.RECORDING_MODE_MIX)
+        else:
+            self.set_recording_mode(AdikTrack.RECORDING_MODE_REPLACE)
+
+    #----------------------------------------
+
     def save_recording(self, filename=None):
         """Sauvegarde le son de l'enregistrement actuel ou le dernier enregistré dans un fichier WAV."""
         # Note: Cette fonction ne doit PAS appeler _finish_recording,
