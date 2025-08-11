@@ -29,6 +29,7 @@ class AdikAudioEngine:
 
     def set_callback(self, callback_func):
         """
+        Deprecated function
         Définit la fonction de rappel qui sera appelée par le stream audio.
         Cette fonction recevra (outdata, frames, time_info, status).
         """
@@ -41,8 +42,8 @@ class AdikAudioEngine:
 
     def set_input_callback(self, callback_func):
         """
-        Définit la fonction de rappel qui sera appelée par le stream audio.
-        Cette fonction recevra (outdata, frames, time_info, status).
+        Définit la fonction de rappel qui sera appelée par le stream audio en enregistrement seul.
+        Cette fonction recevra (indata, frames, time_info, status).
         """
         if callable(callback_func):
             self._input_callback_function = callback_func
@@ -53,7 +54,7 @@ class AdikAudioEngine:
 
     def set_output_callback(self, callback_func):
         """
-        Définit la fonction de rappel qui sera appelée par le stream audio.
+        Définit la fonction de rappel qui sera appelée par le stream audio en lecture seule.
         Cette fonction recevra (outdata, frames, time_info, status).
         """
         if callable(callback_func):
@@ -93,6 +94,15 @@ class AdikAudioEngine:
 
   
     #----------------------------------------
+    
+    def stop_duplex_stream(self):
+        """Arrête et ferme le stream audio."""
+        if self.stream:
+            self.stream.close() # close() arrête et nettoie
+            self.stream = None
+            print("Engine: Stream audio arrêté.")
+    #----------------------------------------
+
 
     def start_output_stream(self):
         """ Démarre le stream audio en lecture seule. """
@@ -119,13 +129,14 @@ class AdikAudioEngine:
             self.stream = None
     #----------------------------------------
 
-    def stop_stream(self):
+    def stop_output_stream(self):
         """Arrête et ferme le stream audio."""
         if self.stream:
             self.stream.close() # close() arrête et nettoie
             self.stream = None
             print("Engine: Stream audio arrêté.")
-    #----------------------------------------
+    
+#----------------------------------------
 
     def start_input_stream(self):
         """ Démarre le stream audio en enregistrement seulement. """
@@ -153,7 +164,7 @@ class AdikAudioEngine:
 
     #----------------------------------------
 
-    def stop_stream_in(self):
+    def stop_input_stream(self):
         """Arrête et ferme le stream audio d'entrée."""
         if self.stream_in:
             self.stream_in.close()
@@ -165,6 +176,12 @@ class AdikAudioEngine:
     def is_running(self):
         """Retourne True si le stream audio est actif."""
         return self.stream is not None and self.stream.active
+
+    #----------------------------------------
+    
+    def is_input_running(self):
+        """Retourne True si le stream audio en enregistrement seul est actif."""
+        return self.stream_in is not None and self.stream_in.active
 
     #----------------------------------------
 

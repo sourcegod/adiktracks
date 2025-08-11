@@ -206,9 +206,15 @@ class AdikPlayer:
             print("Player: Aucune piste armée pour l'enregistrement.")
             return
 
+        # Démarrer spécifiquement le stream d'entrée
+        if not self.audio_engine.is_input_running():
+            self.audio_engine.start_input_stream()
+
+        """
         # S'assurer que le stream est actif (et configuré pour l'entrée)
         if not self._is_engine_running():
             self._start_engine()
+        """
         
         with self._lock:
             self.is_recording = True
@@ -236,9 +242,15 @@ class AdikPlayer:
             self._finish_recording() # Appelle la nouvelle fonction de finalisation
             # Note: is_recording est mis à False dans _finish_recording
             
+            """
             # Arrêter le stream seulement si plus rien n'est actif
             if not self.is_playing and not self.is_recording and self._is_engine_running():
                 self._stop_engine()
+            """
+
+            # Arrêter le stream d'entrée si nécessaire
+            if self.audio_engine.is_input_running():
+                self.audio_engine.stop_input_stream()
 
     #----------------------------------------
     
@@ -416,12 +428,13 @@ class AdikPlayer:
     def _stop_engine(self):
         """Arrête l'engine audio."""
         if self._is_engine_running():
-            self.audio_engine.stop_stream()
+            self.audio_engine.stop_output_stream()
+            # self.audio_engine.stop_duplex_stream()
 
     #----------------------------------------
 
     def _is_engine_running(self):
-        """Retourne si le moteur audio est actif"""
+        """Retourne si le moteur audio en lecture seule est actif"""
         return self.audio_engine.is_running()
 
     #----------------------------------------
@@ -540,16 +553,10 @@ class AdikPlayer:
             beep()
             
         with self._lock:
-            """
-            # 1. Traitement de l'enregistrement
-            if self.is_recording and indata is not None and indata.size > 0:
-                self.recording_buffer = np.append(self.recording_buffer, indata.astype(np.float32).flatten())
-            """
-
-            # 2. Remplissage du buffer de sortie avec des zéros
+            # 1. Remplissage du buffer de sortie avec des zéros
             output_buffer = np.zeros(num_frames * self.num_output_channels, dtype=np.float32)
 
-            # 3. Logique de déclenchement du métronome
+            # 2. Logique de déclenchement du métronome
             if self.metronome.is_clicking:
                 current_beat_index = self.metronome.playback_frame // self.metronome.frames_per_beat
                 next_beat_index = (self.metronome.playback_frame + num_frames) // self.metronome.frames_per_beat
@@ -566,10 +573,10 @@ class AdikPlayer:
                         self.metronome.play_click()
                         self.metronome._increment_beat_count() # Incrémenter le compteur ici
                             
-                # 4. Mixage du son de clic dans le buffer de sortie
+                # 3. Mixage du son du métronome dans le buffer de sortie
                 self.metronome.mix_click_data(output_buffer, num_frames)
                
-            # 5. Traitement de la lecture si le player est en mode PLAY
+            # 4. Traitement de la lecture si le player est en mode PLAY
             # Mettre à jour la position du métronome même si le player est en pause
             if not self.is_playing:
                 if self.metronome.is_clicking:
@@ -585,7 +592,7 @@ class AdikPlayer:
                         should_mix_track = False
                     if track.is_muted:
                         should_mix_track = False
-                    if track.is_armed and self.is_recording and track.recording_mode == track.RECORDING_MODE_REPLACE:
+                    if track.is_armed and self.is_recording and self.recording_mode == track.RECORDING_MODE_REPLACE:
                         should_mix_track = False
 
                     if should_mix_track:
