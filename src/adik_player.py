@@ -426,9 +426,10 @@ class AdikPlayer:
     #----------------------------------------
 
     def _stop_engine(self):
-        """Arrête l'engine audio."""
+        """Arrête l'engine audio, en entrée et en sortie """
         if self._is_engine_running():
-            self.audio_engine.stop_output_stream()
+            # Arrêter tous les streams en cours
+            self.audio_engine.stop_stream()
             # self.audio_engine.stop_duplex_stream()
 
     #----------------------------------------

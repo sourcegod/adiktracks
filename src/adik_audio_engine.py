@@ -173,6 +173,15 @@ class AdikAudioEngine:
 
     #----------------------------------------
 
+    def stop_stream(self):
+        """Arrête et ferme tous les stream audio."""
+        self.stop_input_stream()
+        self.stop_output_stream()
+        print("Engine: tous les Streams audio sont arrêtés.")
+   
+#----------------------------------------
+
+
     def is_running(self):
         """Retourne True si le stream audio est actif."""
         return self.stream is not None and self.stream.active
