@@ -239,6 +239,7 @@ class AdikPlayer:
         
         print("Player: Arrêt de l'enregistrement.")
         with self._lock:
+            # Cette fonction doit être appelée sans être sous un vérou (lock)
             self._finish_recording() # Appelle la nouvelle fonction de finalisation
             # Note: is_recording est mis à False dans _finish_recording
             
@@ -248,9 +249,10 @@ class AdikPlayer:
                 self._stop_engine()
             """
 
-            # Arrêter le stream d'entrée si nécessaire
-            if self.audio_engine.is_input_running():
-                self.audio_engine.stop_input_stream()
+        # Arrêter le stream d'entrée si nécessaire
+        ### Note: Cela doit se faire en dehors du vérou, pour éviter des vérous imbriqués
+        if self.audio_engine.is_input_running():
+            self.audio_engine.stop_input_stream()
 
     #----------------------------------------
     
