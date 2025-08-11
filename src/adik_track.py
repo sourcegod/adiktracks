@@ -266,7 +266,7 @@ class AdikTrack:
 
     #----------------------------------------
 
-    def write_sound_data(self, output_data, num_frames):
+    def mix_sound_data(self, output_data, num_frames):
         """
         Copie le bloc audio de la piste dans le tampon de sortie tout en appliquant
         le volume et le panoramique. Cette fonction est conçue pour être extensible
@@ -309,7 +309,7 @@ class AdikTrack:
                 print(f"Erreur: Le nombre de canaux ({self.num_channels}) n'est pas supporté pour le mixage.")
             
         except Exception as e:
-            print(f"Erreur dans write_sound_data pour la piste {self.name}: {e}")
+            print(f"Erreur dans mix_sound_data pour la piste {self.name}: {e}")
 
     #----------------------------------------
 

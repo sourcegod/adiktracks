@@ -601,9 +601,9 @@ class AdikPlayer:
                     if should_mix_track:
                         if track.audio_sound and track.audio_sound.audio_data.size > 0:
                             try:
-                                track.write_sound_data(output_buffer, num_frames)
+                                track.mix_sound_data(output_buffer, num_frames)
                             except Exception as e:
-                                print(f"Erreur lors de l'appel de write_sound_data pour la piste {track.name}: {e}")
+                                print(f"Erreur lors de l'appel de mix_sound_data pour la piste {track.name}: {e}")
                         else:
                             track.get_audio_block(num_frames)
                     else: # not should_mix_track
@@ -700,9 +700,9 @@ class AdikPlayer:
                     if should_mix_track:
                         if track.audio_sound and track.audio_sound.audio_data.size > 0:
                             try:
-                                track.write_sound_data(output_buffer, num_frames)
+                                track.mix_sound_data(output_buffer, num_frames)
                             except Exception as e:
-                                print(f"Erreur lors de l'appel de write_sound_data pour la piste {track.name}: {e}")
+                                print(f"Erreur lors de l'appel de mix_sound_data pour la piste {track.name}: {e}")
                         else:
                             track.get_audio_block(num_frames)
                     else: # not should_mix_track
