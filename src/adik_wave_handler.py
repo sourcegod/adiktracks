@@ -20,11 +20,12 @@ class AdikWaveHandler:
             # sf.read retourne les données audio et le sample rate
             # dtype='float32' pour obtenir des données normalisées entre -1.0 et 1.0
             # always_2d=True assure que les données sont toujours un tableau 2D (samples, channels)
-            data, samplerate = sf.read(file_path, dtype='float32', always_2d=True)
+            audio_data, samplerate = sf.read(file_path, dtype='float32', always_2d=True)
             
-            num_channels = data.shape[1] # Nombre de colonnes est le nombre de canaux
+            num_channels = audio_data.shape[1] # Nombre de colonnes est le nombre de canaux
 
-            sound = AdikSound(name=os.path.basename(file_path), 
+            sound = AdikSound(name=os.path.basename(file_path),
+                              audio_data = audio_data,
                               sample_rate=samplerate, 
                               num_channels=num_channels)
             
@@ -32,7 +33,7 @@ class AdikWaveHandler:
             # ou si on les manipule comme un seul buffer linéaire.
             # Convertissons les données 2D (samples, channels) en 1D (interleaved)
             # data.flatten() par défaut est row-major (C-style), ce qui correspond à interleaved si (samples, channels).
-            sound.audio_data = data.flatten()
+            # sound.audio_data = data.flatten()
 
             print(f"Fichier WAV chargé: {sound}")
             return sound
