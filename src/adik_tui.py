@@ -112,10 +112,10 @@ class MainWindow:
         for i, track in enumerate(self.player.tracks):
             prefix = "-> " if i == self.player.selected_track_idx else "   "
             status = []
-            if track.is_muted: status.append("M")
-            if track.is_solo: status.append("S")
+            if track.is_muted(): status.append("M")
+            if track._solo: status.append("S")
             # En supposant que AdikTrack aura un attribut is_armed
-            if getattr(track, 'is_armed', False): status.append("REC") 
+            if getattr(track, '_armed', False): status.append("REC") 
             status_str = f"[{' '.join(status)}]" if status else ""
 
             # Assurez-vous que le nom de la piste s'adapte ou est tronqué
@@ -183,8 +183,8 @@ class MainWindow:
                 self.display_status("Lecteur en lecture.")
         elif key == ord('a'): # a: armé piste
             if selected_track:
-                selected_track.is_armed = not selected_track.is_armed
-                self.display_status(f"Piste '{selected_track.name}' Armée: {selected_track.is_armed}")
+                selected_track._armed = not selected_track._armed
+                self.display_status(f"Piste '{selected_track.name}' Armée: {selected_track._armed}")
             else:
                 self.display_status("Aucune piste sélectionnée.")
         elif key == ord('b') or key == ord('B'): # B: Avance rapide
@@ -212,12 +212,12 @@ class MainWindow:
 
         elif key == ord('s'): # s: Solo la piste sélectionnée
             if selected_track:
-                selected_track.is_solo = not selected_track.is_solo
-                if selected_track.is_solo:
+                selected_track._solo = not selected_track._solo
+                if selected_track._solo:
                     for track in self.player.tracks:
-                        if track != selected_track and track.is_solo:
-                            track.is_solo = False
-                self.display_status(f"Piste '{selected_track.name}' Solo: {selected_track.is_solo}")
+                        if track != selected_track and track._solo:
+                            track._solo = False
+                self.display_status(f"Piste '{selected_track.name}' Solo: {selected_track._solo}")
             else:
                 self.display_status("Aucune piste sélectionnée.")
         elif key == ord('v') or key == ord('V'): # V: Arrêt
@@ -228,8 +228,8 @@ class MainWindow:
             self.display_status(f"Retour rapide à {self.player.current_time_seconds:.2f}s.")
         elif key == ord('x'): # x: Mute la piste sélectionnée
             if selected_track:
-                selected_track.is_muted = not selected_track.is_muted
-                self.display_status(f"Piste '{selected_track.name}' Muette: {selected_track.is_muted}")
+                selected_track._muted = not selected_track._muted
+                self.display_status(f"Piste '{selected_track.name}' Muette: {selected_track._muted}")
             else:
                 self.display_status("Aucune piste sélectionnée.")
         elif key == ord('<'): # <: Aller au début

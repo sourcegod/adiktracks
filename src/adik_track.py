@@ -27,13 +27,28 @@ class AdikTrack:
         self.right_gain =1.0
         self.pan = 0.0     # Panoramique (-1.0 pour gauche, 0.0 pour centre, 1.0 pour droite)
 
-        self.is_muted = False
-        self.is_solo = False
-        self.is_armed = False # True si la piste est prête à enregistrer
+        self._muted = False
+        self._solo = False
+        self._armed = False # True si la piste est prête à enregistrer
 
         print(f"AdikTrack '{self.name}' (ID: {self.id}) créé.")
 
     #----------------------------------------
+
+    def is_muted(self):
+        return self._muted
+
+    #----------------------------------------
+    def is_solo(self):
+        return self._solo
+
+    #----------------------------------------
+
+    def is_armed(self):
+        return self._armed
+
+    #----------------------------------------
+
 
     def set_audio_sound(self, sound: AdikSound, offset_frames: int = 0):
         """
@@ -76,7 +91,7 @@ class AdikTrack:
         """
         output_block = AdikSound.new_audio_data(num_frames_to_generate * self.num_channels)
 
-        if self.is_muted or self.audio_sound is None or self.audio_sound.length_frames == 0:
+        if self._muted or self.audio_sound is None or self.audio_sound.length_frames == 0:
             # Avancer la position globale même si la piste est muette ou vide
             self.playback_position += num_frames_to_generate
             return output_block 
@@ -330,9 +345,9 @@ class AdikTrack:
 
     def __str__(self):
         status = []
-        if self.is_muted: status.append("M")
-        if self.is_solo: status.append("S")
-        if self.is_armed: status.append("R")
+        if self._muted: status.append("M")
+        if self._solo: status.append("S")
+        if self._armed: status.append("R")
         status_str = f"[{' '.join(status)}]" if status else ""
 
         sound_info = f"'{self.audio_sound.name}'" if self.audio_sound else "None"

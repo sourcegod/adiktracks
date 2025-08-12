@@ -36,7 +36,6 @@ class AdikPlayer:
         self.selected_track_idx = -1 # Index de la piste sélectionnée
         self.current_playback_frame = 0 # Position globale du player en frames
         self._playing = False
-
         self._recording = False # Retirer le commentaire pour que l'enregistrement soit fonctionnel
         self.recording_buffer = np.array([], dtype=np.float32) 
         self.recording_sound = None 
@@ -212,7 +211,7 @@ class AdikPlayer:
             return
 
         selected_track = self.get_selected_track()
-        if not selected_track or not selected_track.is_armed:
+        if not selected_track or not selected_track.is_armed():
             print("Player: Aucune piste armée pour l'enregistrement.")
             return
 
@@ -610,15 +609,15 @@ class AdikPlayer:
                     pass
 
             else: # self._playing 
-                solo_active = any(track.is_solo for track in self.tracks)
+                solo_active = any(track.is_solo() for track in self.tracks)
 
                 for track in self.tracks:
                     should_mix_track = True
-                    if solo_active and not track.is_solo:
+                    if solo_active and not track.is_solo():
                         should_mix_track = False
-                    if track.is_muted:
+                    if track.is_muted():
                         should_mix_track = False
-                    if track.is_armed and self._recording and self.recording_mode == track.RECORDING_MODE_REPLACE:
+                    if track.is_armed() and self._recording and self.recording_mode == track.RECORDING_MODE_REPLACE:
                         should_mix_track = False
 
                     if should_mix_track:
@@ -709,15 +708,15 @@ class AdikPlayer:
                     pass
 
             else: # self._playing 
-                solo_active = any(track.is_solo for track in self.tracks)
+                solo_active = any(track.is_solo() for track in self.tracks)
 
                 for track in self.tracks:
                     should_mix_track = True
-                    if solo_active and not track.is_solo:
+                    if solo_active and not track.is_solo():
                         should_mix_track = False
-                    if track.is_muted:
+                    if track.is_muted():
                         should_mix_track = False
-                    if track.is_armed and self._recording and track.recording_mode == track.RECORDING_MODE_REPLACE:
+                    if track.is_armed() and self._recording and track.recording_mode == track.RECORDING_MODE_REPLACE:
                         should_mix_track = False
 
                     if should_mix_track:
