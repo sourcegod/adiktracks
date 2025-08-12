@@ -582,12 +582,12 @@ class AdikPlayer:
             output_buffer = np.zeros(num_frames * self.num_output_channels, dtype=np.float32)
 
             # 2. Logique de déclenchement du métronome
-            if self.metronome.is_clicking:
+            if self.metronome.is_clicking():
                 current_beat_index = self.metronome.playback_frame // self.metronome.frames_per_beat
                 next_beat_index = (self.metronome.playback_frame + num_frames) // self.metronome.frames_per_beat
 
                 # Si le métronome vient d'être démarré et que la position est à zéro, on clique immédiatement.
-                if self.metronome.playback_frame == 0 and not self.metronome.is_click_playing:
+                if self.metronome.playback_frame == 0 and not self.metronome._click_playing:
                     beep()
                     self.metronome.beat_count =0
                     self.metronome.play_click()
@@ -604,7 +604,7 @@ class AdikPlayer:
             # 4. Traitement de la lecture si le player est en mode PLAY
             # Mettre à jour la position du métronome même si le player est en pause
             if not self._playing:
-                if self.metronome.is_clicking:
+                if self.metronome.is_clicking():
                     self.metronome.playback_frame += num_frames
                     pass
 
@@ -681,12 +681,12 @@ class AdikPlayer:
             output_buffer = np.zeros(num_frames * self.num_output_channels, dtype=np.float32)
 
             # 3. Logique de déclenchement du métronome
-            if self.metronome.is_clicking:
+            if self.metronome.is_clicking():
                 current_beat_index = self.metronome.playback_frame // self.metronome.frames_per_beat
                 next_beat_index = (self.metronome.playback_frame + num_frames) // self.metronome.frames_per_beat
 
                 # Si le métronome vient d'être démarré et que la position est à zéro, on clique immédiatement.
-                if self.metronome.playback_frame == 0 and not self.metronome.is_click_playing:
+                if self.metronome.playback_frame == 0 and not self.metronome._click_playing:
                     beep()
                     self.metronome.beat_count =0
                     self.metronome.play_click()
@@ -703,7 +703,7 @@ class AdikPlayer:
             # 5. Traitement de la lecture si le player est en mode PLAY
             # Mettre à jour la position du métronome même si le player est en pause
             if not self._playing:
-                if self.metronome.is_clicking:
+                if self.metronome.is_clicking():
                     self.metronome.playback_frame += num_frames
                     pass
 

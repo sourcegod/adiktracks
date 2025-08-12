@@ -10,12 +10,12 @@ class AdikMetronome:
         self.tempo_bpm = 120.0
         self.frames_per_beat = 0
         self.beat_count = 0
-        self.is_clicking = False
+        self._clicking = False
         self.playback_frame = 0
         self.strong_beat_click_data = None
         self.weak_beat_click_data = None
         self.click_sound_position = 0
-        self.is_click_playing = False
+        self._click_playing = False
         self._lock = None  # Le verrou sera géré par AdikPlayer
         self.metronome_thread = None
         self.thread_stop_event = threading.Event()
@@ -62,8 +62,8 @@ class AdikMetronome:
 
     def toggle_click(self, is_playing):
         """Active ou désactive le métronome."""
-        self.is_clicking = not self.is_clicking
-        if self.is_clicking:
+        self._clicking = not self._clicking
+        if self._clicking:
             # Réinitialisation pour un départ sur un temps fort
             if is_playing:
                 self.playback_frame = 0 # Sera synchronisé par AdikPlayer
@@ -79,13 +79,13 @@ class AdikMetronome:
     def play_click(self):
         """Déclenche la lecture du son de clic."""
         self.click_sound_position = 0
-        self.is_click_playing = True
+        self._click_playing = True
 
     #----------------------------------------
 
     def mix_click_data(self, output_buffer, num_frames):
         """Mixe le son du métronome dans le buffer de sortie."""
-        if not self.is_click_playing:
+        if not self._click_playing:
             return
 
         click_sound = self.strong_beat_click_data if self.beat_count == 0 else self.weak_beat_click_data
@@ -108,7 +108,7 @@ class AdikMetronome:
             self.click_sound_position += frames_to_mix
 
         if self.click_sound_position >= click_sound_length_frames:
-            self.is_click_playing = False
+            self._click_playing = False
             self.click_sound_position = 0
 
     #----------------------------------------
@@ -123,7 +123,7 @@ class AdikMetronome:
 
     def start_click(self):
         """Active le métronome."""
-        self.is_clicking = True
+        self._clicking = True
         self.beat_count = 0
         self.play_frame =0
         print("Metronome: Activé.")
@@ -132,10 +132,16 @@ class AdikMetronome:
 
     def stop_click(self):
         """Désactive le métronome."""
-        self.is_clicking = False
+        self._clicking = False
         self.beat_count = 0
         self.play_frame =0
         print("Metronome: Désactivé.")
+
+    #----------------------------------------
+
+    def is_clicking(self):
+        """ Retourne l'état du métronome. """
+        return self._clicking
 
     #----------------------------------------
 
