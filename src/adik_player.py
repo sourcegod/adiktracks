@@ -346,7 +346,7 @@ class AdikPlayer:
 
         sound_to_save = self.recording_sound # Tente de sauvegarder le dernier son finalisé
 
-        if sound_to_save and sound_to_save.audio_data.size > 0:
+        if sound_to_save and sound_to_save.get_length_frames() > 0:
             if filename is None:
                 # Utilise un nom de fichier par défaut basé sur le nom du son
                 filename = f"/tmp/{sound_to_save.name.replace(' ', '_').replace(':', '')}.wav"
@@ -612,7 +612,7 @@ class AdikPlayer:
                         should_mix_track = False
 
                     if should_mix_track:
-                        if track.audio_sound and track.audio_sound.audio_data.size > 0:
+                        if track.audio_sound and track.audio_sound.get_length_frames() > 0:
                             try:
                                 track.mix_sound_data(output_buffer, num_frames)
                             except Exception as e:
@@ -711,7 +711,7 @@ class AdikPlayer:
                         should_mix_track = False
 
                     if should_mix_track:
-                        if track.audio_sound and track.audio_sound.audio_data.size > 0:
+                        if track.audio_sound and track.audio_sound.audio_data.get_length_frames() > 0:
                             try:
                                 track.mix_sound_data(output_buffer, num_frames)
                             except Exception as e:
