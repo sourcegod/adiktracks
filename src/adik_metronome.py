@@ -93,7 +93,7 @@ class AdikMetronome:
         if click_sound is None:
             return
 
-        click_sound_length_frames = click_sound.get_length_frames()
+        click_sound_length_frames = click_sound.length_frames
         remaining_frames_in_click = click_sound_length_frames - self.click_sound_position
         frames_to_mix = min(num_frames, remaining_frames_in_click)
 
