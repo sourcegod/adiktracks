@@ -49,7 +49,7 @@ class AdikTrack:
                 sound.audio_data,
                 sound.num_channels,
                 self.num_channels,
-                sound.get_length_frames()
+                sound.length_frames
             )
             
             # Créer un nouvel objet AdikSound avec les données converties
@@ -76,7 +76,7 @@ class AdikTrack:
         """
         output_block = AdikSound.new_audio_data(num_frames_to_generate * self.num_channels)
 
-        if self.is_muted or self.audio_sound is None or self.audio_sound.get_length_frames() == 0:
+        if self.is_muted or self.audio_sound is None or self.audio_sound.length_frames == 0:
             # Avancer la position globale même si la piste est muette ou vide
             self.playback_position += num_frames_to_generate
             return output_block 
@@ -176,7 +176,7 @@ class AdikTrack:
             return
 
         old_sound_data = self.audio_sound.audio_data
-        old_sound_length = self.audio_sound.get_length_frames()
+        old_sound_length = self.audio_sound.length_frames
         old_sound_end = self.offset_frames + old_sound_length
         
         take_length = len(new_take_audio_data) // new_take_channels
@@ -262,7 +262,7 @@ class AdikTrack:
             sample_rate=self.sample_rate,
             num_channels=self.num_channels
         ), offset_frames=min(self.offset_frames, take_start_frame))
-        print(f"Piste '{self.name}': Take arrangée. Nouvelle longueur: {self.audio_sound.get_length_frames()} frames, nouvel offset: {self.offset_frames}.")
+        print(f"Piste '{self.name}': Take arrangée. Nouvelle longueur: {self.audio_sound.length_frames} frames, nouvel offset: {self.offset_frames}.")
 
     #----------------------------------------
 
