@@ -37,7 +37,7 @@ class AdikPlayer:
         self.current_playback_frame = 0 # Position globale du player en frames
         self._playing = False
 
-        self.is_recording = False # Retirer le commentaire pour que l'enregistrement soit fonctionnel
+        self._recording = False # Retirer le commentaire pour que l'enregistrement soit fonctionnel
         self.recording_buffer = np.array([], dtype=np.float32) 
         self.recording_sound = None 
         self.recording_start_frame = 0 # La frame où l'enregistrement a commencé
@@ -144,9 +144,14 @@ class AdikPlayer:
 
     #----------------------------------------
 
+    def is_recording(self):
+        return self._recording
+
+    #----------------------------------------
+
     def play(self):
         # Si on est en enregistrement, le bouton 'Play' agit comme 'Stop Recording'
-        if self.is_recording:
+        if self._recording:
             self.stop_recording()
             return
 
@@ -162,21 +167,21 @@ class AdikPlayer:
     #----------------------------------------
 
     def pause(self):
-        if not self._playing and not self.is_recording:
+        if not self._playing and not self._recording:
             print("Pas en lecture ou en enregistrement.")
             return
         
         print("Mise en pause.")
         with self._lock:
             self._playing = False
-            if self.is_recording: # Si on était en enregistrement, finaliser
+            if self._recording: # Si on était en enregistrement, finaliser
                 self._finish_recording()
             # La gestion de l'arrêt du moteur est dans stop() ou stop_recording()
 
     #----------------------------------------
 
     def stop(self):
-        if not self._playing and not self.is_recording and not self._is_engine_running():
+        if not self._playing and not self._recording and not self._is_engine_running():
             print("Déjà arrêté.")
             return
 
@@ -185,7 +190,7 @@ class AdikPlayer:
         with self._lock:
             self._playing = False
             # Si on était en enregistrement, finaliser avant de réinitialiser
-            if self.is_recording:
+            if self._recording:
                 self._finish_recording()
             
             self.current_playback_frame = 0
@@ -194,7 +199,7 @@ class AdikPlayer:
             
         # Appelle la méthode de l'engine pour arrêter le stream
         # Seulement si rien d'autre ne tourne (pas de lecture, pas d'enregistrement)
-        if not self._playing and not self.is_recording and self._is_engine_running():
+        if not self._playing and not self._recording and self._is_engine_running():
             self._stop_engine()
 
     #----------------------------------------
@@ -202,7 +207,7 @@ class AdikPlayer:
     # --- Méthodes pour l'enregistrement ---
     def start_recording(self):
         """Démarre l'enregistrement audio à la position actuelle du player."""
-        if self.is_recording:
+        if self._recording:
             print("Player: Déjà en enregistrement. Appuyez sur 'R' de nouveau pour arrêter.")
             return
 
@@ -222,7 +227,7 @@ class AdikPlayer:
         """
         
         with self._lock:
-            self.is_recording = True
+            self._recording = True
             self.recording_buffer = np.array([], dtype=np.float32) # Effacer le buffer précédent
             self.recording_sound = None # Réinitialiser l'objet AdikSound
             
@@ -238,7 +243,7 @@ class AdikPlayer:
 
     def stop_recording(self):
         """Arrête l'enregistrement audio et déclenche la finalisation."""
-        if not self.is_recording:
+        if not self._recording:
             print("Player: Pas en enregistrement.")
             return
         
@@ -250,7 +255,7 @@ class AdikPlayer:
             
             """
             # Arrêter le stream seulement si plus rien n'est actif
-            if not self._playing and not self.is_recording and self._is_engine_running():
+            if not self._playing and not self._recording and self._is_engine_running():
                 self._stop_engine()
             """
 
@@ -262,12 +267,12 @@ class AdikPlayer:
     #----------------------------------------
     
     def _finish_recording(self):
-        if not self.is_recording:
+        if not self._recording:
             print("Player: Aucune session d'enregistrement active à finaliser (interne).")
             return
 
         print("Player: Finalisation de l'enregistrement...")
-        self.is_recording = False
+        self._recording = False
 
         if self.recording_buffer.size > 0:
             self.recording_end_frame = self.current_playback_frame 
@@ -345,7 +350,7 @@ class AdikPlayer:
         """Sauvegarde le son de l'enregistrement actuel ou le dernier enregistré dans un fichier WAV."""
         # Note: Cette fonction ne doit PAS appeler _finish_recording,
         # elle doit être appelée APRES que l'enregistrement ait été arrêté et finalisé.
-        if self.is_recording:
+        if self._recording:
             print("Player: L'enregistrement est toujours actif. Veuillez l'arrêter d'abord pour le sauvegarder.")
             return
 
@@ -559,7 +564,7 @@ class AdikPlayer:
             beep()
 
         with self._lock:
-            if self.is_recording and indata is not None and indata.size > 0:
+            if self._recording and indata is not None and indata.size > 0:
                 self.recording_buffer = np.append(self.recording_buffer, indata.astype(np.float32).flatten())
 
     #----------------------------------------
@@ -613,7 +618,7 @@ class AdikPlayer:
                         should_mix_track = False
                     if track.is_muted:
                         should_mix_track = False
-                    if track.is_armed and self.is_recording and self.recording_mode == track.RECORDING_MODE_REPLACE:
+                    if track.is_armed and self._recording and self.recording_mode == track.RECORDING_MODE_REPLACE:
                         should_mix_track = False
 
                     if should_mix_track:
@@ -648,7 +653,7 @@ class AdikPlayer:
                             if self.current_playback_frame < (track.offset_frames + track.audio_sound.length_frames):
                                 all_tracks_finished = False
                                 break
-                    if all_tracks_finished and not self.is_recording:
+                    if all_tracks_finished and not self._recording:
                         print("Player: Toutes les pistes ont fini de jouer. Arrêt automatique.")
                         self._playing = False
             
@@ -670,7 +675,7 @@ class AdikPlayer:
             
         with self._lock:
             # 1. Traitement de l'enregistrement
-            if self.is_recording and indata is not None and indata.size > 0:
+            if self._recording and indata is not None and indata.size > 0:
                 self.recording_buffer = np.append(self.recording_buffer, indata.astype(np.float32).flatten())
 
             # 2. Remplissage du buffer de sortie avec des zéros
@@ -712,7 +717,7 @@ class AdikPlayer:
                         should_mix_track = False
                     if track.is_muted:
                         should_mix_track = False
-                    if track.is_armed and self.is_recording and track.recording_mode == track.RECORDING_MODE_REPLACE:
+                    if track.is_armed and self._recording and track.recording_mode == track.RECORDING_MODE_REPLACE:
                         should_mix_track = False
 
                     if should_mix_track:
@@ -747,7 +752,7 @@ class AdikPlayer:
                             if self.current_playback_frame < (track.offset_frames + track.audio_sound.length_frames):
                                 all_tracks_finished = False
                                 break
-                    if all_tracks_finished and not self.is_recording:
+                    if all_tracks_finished and not self._recording:
                         print("Player: Toutes les pistes ont fini de jouer. Arrêt automatique.")
                         self._playing = False
             
