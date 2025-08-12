@@ -20,28 +20,63 @@ class AdikSound:
 
         self.sample_rate = sample_rate
         self.num_channels = num_channels
-        
-        # Si des données audio sont fournies, les utiliser, sinon créer un tableau vide
-        if audio_data is not None:
-            # S'assurer que les données sont de type float32
-            self.audio_data = np.array(audio_data, dtype=np.float32)
-            # Vérification simple de cohérence (optionnel, mais bonne pratique)
-            expected_len = self.sample_rate * self.get_duration_seconds() * self.num_channels
-            if len(self.audio_data) % self.num_channels != 0:
-                 print(f"Attention: Longueur des données audio ({len(self.audio_data)}) non multiple du nombre de canaux ({self.num_channels}).")
-        else:
-            self.audio_data = np.array([], dtype=np.float32)  # Utilisation de NumPy pour les données audio
+        self.audio_data = np.array([], dtype=np.float32)
 
-        # S'assurer que audio_data est 1D (entrelacé pour multi-canaux)
-        if self.audio_data.ndim > 1:
-            self.audio_data = self.audio_data.flatten()
+        self._length_frames = 0
+        self._length_samples = 0
+        self._length_seconds = 0.0 # Nouvelle propriété
+
+        if audio_data is not None:
+            self.audio_data = np.array(audio_data, dtype=np.float32).flatten()
+        
+        self.update_params() # Appel initial pour définir les longueurs
 
         print(f"AdikSound '{self.name}' (ID: {self.id}) créé. "
               f"SR: {self.sample_rate}, Channels: {self.num_channels}, "
-              f"Durée: {self.get_duration_seconds():.2f}s")
-
+              f"Durée: {self.length_seconds:.2f}s, " # Utilisation de la nouvelle propriété
+              f"Frames: {self.length_frames}, Samples: {self.length_samples}")
 
     #----------------------------------------
+
+    def update_params(self):
+        """
+        Met à jour les paramètres de longueur du son après une modification
+        des données audio.
+        """
+        self._length_samples = len(self.audio_data)
+        if self.num_channels > 0:
+            self._length_frames = self._length_samples // self.num_channels
+            if self.sample_rate > 0:
+                self._length_seconds = self._length_samples / (self.sample_rate * self.num_channels)
+            else:
+                self._length_seconds = 0.0
+        else:
+            self._length_frames = 0
+            self._length_seconds = 0.0
+
+    #----------------------------------------
+
+    @property
+    def length_frames(self):
+        """Retourne la longueur du son en frames."""
+        return self._length_frames
+
+    #----------------------------------------
+
+    @property
+    def length_samples(self):
+        """Retourne la longueur du son en samples."""
+        return self._length_samples
+
+    #----------------------------------------
+
+    @property
+    def length_seconds(self):
+        """Retourne la durée du son en secondes."""
+        return self._length_seconds
+
+    #----------------------------------------
+
 
     def get_length_samples(self):
         """Retourne la longueur du son en échantillons ."""
@@ -78,6 +113,7 @@ class AdikSound:
         # Pour l'enregistrement, on append généralement plutôt que resize à l'avance.
         # On pourrait aussi pré-allouer une grande taille ou gérer des chunks.
         # Pour ce prototype, nous allons simplifier.
+        self.update_params() # Mise à jour après redimensionnement
 
     #----------------------------------------
 
@@ -87,6 +123,7 @@ class AdikSound:
         'data' doit être un tableau NumPy.
         """
         self.audio_data = np.append(self.audio_data, data).astype(np.float32)
+        self.update_params() # Mise à jour après redimensionnement
 
     #----------------------------------------
 
@@ -97,7 +134,6 @@ class AdikSound:
         return np.zeros(num_samples, dtype=np.float32)
 
     #----------------------------------------
-
 
     @staticmethod
     def concat_audio_data(buffer1: np.ndarray, buffer2: np.ndarray) -> np.ndarray:
