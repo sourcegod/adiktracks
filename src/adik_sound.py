@@ -43,6 +43,15 @@ class AdikSound:
 
     #----------------------------------------
 
+    def get_length_samples(self):
+        """Retourne la longueur du son en échantillons ."""
+        if self.num_channels > 0:
+            return len(self.audio_data)
+        
+        return 0
+
+    #----------------------------------------
+
 
     def get_length_frames(self):
         """Retourne la longueur du son en frames (un frame = un sample pour chaque canal)."""
