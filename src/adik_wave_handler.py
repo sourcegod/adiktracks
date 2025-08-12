@@ -44,7 +44,7 @@ class AdikWaveHandler:
 
     @staticmethod
     def save_wav(file_path, adik_sound):
-        if not isinstance(adik_sound, AdikSound) or adik_sound.audio_data.size == 0:
+        if not isinstance(adik_sound, AdikSound) or adik_sound.get_length_frames() == 0:
             print("Erreur: L'objet AdikSound est invalide ou vide pour la sauvegarde.")
             return False
 
@@ -106,7 +106,7 @@ class AdikWaveHandler:
         """
         Sauvegarde un objet AdikSound dans un fichier .wav.
         """
-        if sound is None or sound.audio_data.size == 0:
+        if sound is None or sound.get_length_frames() == 0:
             print("Erreur: Le son à sauvegarder est vide.")
             return
 
