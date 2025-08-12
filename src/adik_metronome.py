@@ -145,6 +145,12 @@ class AdikMetronome:
 
     #----------------------------------------
 
+    def is_click_playing(self):
+        """ Retourne si le son du métronome est en train de jouer """
+        return self._click_playing
+
+    #----------------------------------------
+
 
     def _metronome_runner(self):
         # deprecated function

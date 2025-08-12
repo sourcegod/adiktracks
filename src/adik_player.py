@@ -587,7 +587,7 @@ class AdikPlayer:
                 next_beat_index = (self.metronome.playback_frame + num_frames) // self.metronome.frames_per_beat
 
                 # Si le métronome vient d'être démarré et que la position est à zéro, on clique immédiatement.
-                if self.metronome.playback_frame == 0 and not self.metronome._click_playing:
+                if self.metronome.playback_frame == 0 and not self.metronome.is_click_playing():
                     beep()
                     self.metronome.beat_count =0
                     self.metronome.play_click()
@@ -686,7 +686,7 @@ class AdikPlayer:
                 next_beat_index = (self.metronome.playback_frame + num_frames) // self.metronome.frames_per_beat
 
                 # Si le métronome vient d'être démarré et que la position est à zéro, on clique immédiatement.
-                if self.metronome.playback_frame == 0 and not self.metronome._click_playing:
+                if self.metronome.playback_frame == 0 and not self.metronome.is_click_playing():
                     beep()
                     self.metronome.beat_count =0
                     self.metronome.play_click()
