@@ -35,7 +35,7 @@ class AdikPlayer:
         self.tracks = [] # Liste des objets AdikTrack
         self.selected_track_idx = -1 # Index de la piste sélectionnée
         self.current_playback_frame = 0 # Position globale du player en frames
-        self.is_playing = False
+        self._playing = False
 
         self.is_recording = False # Retirer le commentaire pour que l'enregistrement soit fonctionnel
         self.recording_buffer = np.array([], dtype=np.float32) 
@@ -139,31 +139,36 @@ class AdikPlayer:
     #----------------------------------------
 
     # --- Transport (Play/Pause/Stop) ---
+    def is_playing(self):
+        return self._playing
+
+    #----------------------------------------
+
     def play(self):
         # Si on est en enregistrement, le bouton 'Play' agit comme 'Stop Recording'
         if self.is_recording:
             self.stop_recording()
             return
 
-        if self.is_playing:
+        if self._playing:
             print("Déjà en lecture.")
             return
 
         print("Démarrage de la lecture...")
         with self._lock:
-            self.is_playing = True
+            self._playing = True
             self._start_engine() # Appelle la méthode de l'engine pour démarrer le stream
 
     #----------------------------------------
 
     def pause(self):
-        if not self.is_playing and not self.is_recording:
+        if not self._playing and not self.is_recording:
             print("Pas en lecture ou en enregistrement.")
             return
         
         print("Mise en pause.")
         with self._lock:
-            self.is_playing = False
+            self._playing = False
             if self.is_recording: # Si on était en enregistrement, finaliser
                 self._finish_recording()
             # La gestion de l'arrêt du moteur est dans stop() ou stop_recording()
@@ -171,14 +176,14 @@ class AdikPlayer:
     #----------------------------------------
 
     def stop(self):
-        if not self.is_playing and not self.is_recording and not self._is_engine_running():
+        if not self._playing and not self.is_recording and not self._is_engine_running():
             print("Déjà arrêté.")
             return
 
         print("Arrêt du player.")
 
         with self._lock:
-            self.is_playing = False
+            self._playing = False
             # Si on était en enregistrement, finaliser avant de réinitialiser
             if self.is_recording:
                 self._finish_recording()
@@ -189,7 +194,7 @@ class AdikPlayer:
             
         # Appelle la méthode de l'engine pour arrêter le stream
         # Seulement si rien d'autre ne tourne (pas de lecture, pas d'enregistrement)
-        if not self.is_playing and not self.is_recording and self._is_engine_running():
+        if not self._playing and not self.is_recording and self._is_engine_running():
             self._stop_engine()
 
     #----------------------------------------
@@ -226,7 +231,7 @@ class AdikPlayer:
             self.recording_end_frame = self.current_playback_frame # Initialiser la fin à la même position
 
             # Ne pas réinitialiser la position de lecture ici
-            self.is_playing = True # Démarrer la lecture pour le monitoring pendant l'enregistrement
+            self._playing = True # Démarrer la lecture pour le monitoring pendant l'enregistrement
             print(f"Player: Enregistrement démarré à la frame {self.recording_start_frame}.")
 
     #----------------------------------------
@@ -245,7 +250,7 @@ class AdikPlayer:
             
             """
             # Arrêter le stream seulement si plus rien n'est actif
-            if not self.is_playing and not self.is_recording and self._is_engine_running():
+            if not self._playing and not self.is_recording and self._is_engine_running():
                 self._stop_engine()
             """
 
@@ -594,12 +599,12 @@ class AdikPlayer:
                
             # 4. Traitement de la lecture si le player est en mode PLAY
             # Mettre à jour la position du métronome même si le player est en pause
-            if not self.is_playing:
+            if not self._playing:
                 if self.metronome.is_clicking:
                     self.metronome.playback_frame += num_frames
                     pass
 
-            else: # self.is_playing 
+            else: # self._playing 
                 solo_active = any(track.is_solo for track in self.tracks)
 
                 for track in self.tracks:
@@ -645,7 +650,7 @@ class AdikPlayer:
                                 break
                     if all_tracks_finished and not self.is_recording:
                         print("Player: Toutes les pistes ont fini de jouer. Arrêt automatique.")
-                        self.is_playing = False
+                        self._playing = False
             
             outdata[:] = output_buffer.reshape((num_frames, self.num_output_channels))
 
@@ -693,12 +698,12 @@ class AdikPlayer:
                
             # 5. Traitement de la lecture si le player est en mode PLAY
             # Mettre à jour la position du métronome même si le player est en pause
-            if not self.is_playing:
+            if not self._playing:
                 if self.metronome.is_clicking:
                     self.metronome.playback_frame += num_frames
                     pass
 
-            else: # self.is_playing 
+            else: # self._playing 
                 solo_active = any(track.is_solo for track in self.tracks)
 
                 for track in self.tracks:
@@ -744,7 +749,7 @@ class AdikPlayer:
                                 break
                     if all_tracks_finished and not self.is_recording:
                         print("Player: Toutes les pistes ont fini de jouer. Arrêt automatique.")
-                        self.is_playing = False
+                        self._playing = False
             
             outdata[:] = output_buffer.reshape((num_frames, self.num_output_channels))
 

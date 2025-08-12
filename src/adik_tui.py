@@ -91,7 +91,7 @@ class MainWindow:
         self.info_window.addstr(0, 0, "--- AdikTracks Player ---") # Redessiner l'en-tête
         self.info_window.addstr(1, 0, f"Temps: {self.player.current_time_seconds:.2f}s / {self.player.total_duration_seconds:.2f}s")
         # Mettre à jour la ligne de statut pour inclure un état 'RECORDING' potentiel
-        player_status_str = 'LECTURE' if self.player.is_playing else ('ENREGISTREMENT' if getattr(self.player, 'is_recording', False) else 'ARRÊTÉ')
+        player_status_str = 'LECTURE' if self.player.is_playing() else ('ENREGISTREMENT' if getattr(self.player, 'is_recording', False) else 'ARRÊTÉ')
         self.info_window.addstr(2, 0, f"Statut: {player_status_str}") 
         
         selected_track = self.player.get_selected_track()
@@ -172,7 +172,7 @@ class MainWindow:
             self.display_status("Fermeture de l'application...")
 
         elif key == ord(' '): # Espace: Lecture/Pause
-            if self.player.is_playing:
+            if self.player.is_playing():
                 self.player.pause()
                 self.display_status("Lecteur en pause.")
             elif self.player.is_recording:
