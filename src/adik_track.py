@@ -76,7 +76,7 @@ class AdikTrack:
         """
         output_block = AdikSound.new_audio_data(num_frames_to_generate * self.num_channels)
 
-        if self.is_muted or self.audio_sound is None or self.audio_sound.audio_data.size == 0:
+        if self.is_muted or self.audio_sound is None or self.audio_sound.get_length_frames() == 0:
             # Avancer la position globale même si la piste est muette ou vide
             self.playback_position += num_frames_to_generate
             return output_block 
