@@ -18,7 +18,7 @@ from adik_mixer import AdikMixer
 from adik_audio_engine import AdikAudioEngine
 from adik_track import AdikTrack
 from adik_player import AdikPlayer
-from adik_tui import MainWindow
+from adik_tui import AdikTUI
 
 # --- fonctions de déboggage -- 
 def beep():
@@ -86,7 +86,7 @@ def main_curses(stdscr):
     player = AdikPlayer(sample_rate, block_size, num_output_channels, num_input_channels)
 
      # Initialiser la classe MainWindow pour l'interface utilisateur Curses
-    ui = MainWindow(stdscr, player)
+    ui = AdikTUI(stdscr, player)
     ui.display_status("Application démarrée. Appuyez sur '?' pour les commandes.") # Message de statut initial
 
    

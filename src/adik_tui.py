@@ -2,7 +2,8 @@
 import curses
 import time
 
-class MainWindow:
+class AdikTUI(object):
+    """ Text User Interface manager object, using curses library """
     def __init__(self, stdscr, player):
         self.stdscr = stdscr
         self.player = player
