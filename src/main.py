@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
     File: main.py
     Test for adiktracks application
@@ -164,27 +165,39 @@ def main_curses(stdscr):
     player._start_engine()
     # Boucle principale de l'application
     running = True
-    try: 
-        while running:
-            # Mettre à jour tous les éléments de l'interface utilisateur
-            # ui.update_all()
-            
-            # Obtenir une entrée bloquante (attend l'appui sur une touche)
-            key = stdscr.getch() 
-            
-            # Gérer la touche pressée via le key_handler de l'interface utilisateur
-            running = ui.key_handler(key)
+    # Ici, on ne met pas de block try/catch... car c'est fait autre part, à l'appel de cette fonction, ce qui permet d'afficher les tracebacks.
+    # try: 
+    while running:
+        # Mettre à jour tous les éléments de l'interface utilisateur
+        # ui.update_all()
+        
+        # Obtenir une entrée bloquante (attend l'appui sur une touche)
+        key = stdscr.getch() 
+        
+        # Gérer la touche pressée via le key_handler de l'interface utilisateur
+        running = ui.key_handler(key)
 
-            # Pas besoin de time.sleep ici car getch() est bloquant
-            # L'interface utilisateur ne se met à jour que lorsqu'une touche est pressée.
-            # Pour des mises à jour continues pendant la lecture, il faudrait un getch() non bloquant
-            # et un thread de mise à jour de l'interface utilisateur séparé ou un petit timeout dans getch().
-        # End of while loop
-        beep()
-    
+        # Pas besoin de time.sleep ici car getch() est bloquant
+        # L'interface utilisateur ne se met à jour que lorsqu'une touche est pressée.
+        # Pour des mises à jour continues pendant la lecture, il faudrait un getch() non bloquant
+        # et un thread de mise à jour de l'interface utilisateur séparé ou un petit timeout dans getch().
+    # End of while loop
+    beep()
+    player.stop() 
+    print("Application terminée.")
+
+    """
+    except Exception as e:
+        print(f"Error: Une erreur est survenue: {e}")
+        # Cette ligne est cruciale
+        import traceback
+        traceback.print_exc()
+        # Vous pouvez également imprimer le traceback ici pour le voir
+
     finally: 
         player.stop() 
         print("Application terminée.")
+    """
 
 #----------------------------------------
 
@@ -207,7 +220,11 @@ if __name__ == "__main__":
         print("Il se peut que votre terminal ne supporte pas Curses ou que 'windows-curses' ne soit pas installé sur Windows.")
         print("Exécutez 'pip install windows-curses' si vous êtes sur Windows.")
     except Exception as e:
-        print(f"\nUne erreur inattendue est survenue: {e}")
+        print(f"\nApp Error: Une erreur inattendue est survenue: {e}")
+        # Cette ligne est cruciale
+        import traceback
+        traceback.print_exc()
+    
     finally:
         sys.exit(0)
 

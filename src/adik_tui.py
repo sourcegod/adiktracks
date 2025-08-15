@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # adik_tui.py
 import curses
 import time
@@ -191,13 +192,6 @@ class AdikTUI(object):
         elif key == ord('b') or key == ord('B'): # B: Avance rapide
             self.player.forward()
             self.display_status(f"Avance rapide à {self.player.current_time_seconds:.2f}s.")
-        elif key == ord('d') or key == ord('D'): # D: Supprimer Piste
-            if selected_track:
-                track_name = selected_track.name
-                self.player.delete_track(self.player.selected_track_idx)
-                self.display_status(f"Piste '{track_name}' supprimée.")
-            else:
-                self.display_status("Aucune piste sélectionnée à supprimer.")
         elif key == ord('k'): # 'k'
             self.player.toggle_click()
         elif key == ord('l'): # 'l'
@@ -291,6 +285,13 @@ class AdikTUI(object):
             else:
                 self.display_status("Déjà à la dernière piste.")
                 curses.beep()
+        elif key == curses.KEY_DC: # touche Delete/Suppr.
+            if selected_track:
+                track_name = selected_track.name
+                self.player.delete_track(self.player.selected_track_idx)
+                self.display_status(f"Piste '{track_name}' supprimée.")
+            else:
+                self.display_status("Aucune piste sélectionnée à supprimer.")
         else:
             self.display_status(f"Touche '{chr(key)}' ({key}) non reconnue.")
             curses.beep()
