@@ -249,6 +249,8 @@ class AdikTUI(object):
             self._app.go_to_end()
         elif key == 12:  # Ctrl+L
             self._app.set_loop_points()
+        elif key == 16:  # Ctrl+P
+            self._app.load_demo()
         elif key == 18:  # Ctrl+R
             self._app.toggle_recording_mode()
         elif key == 20:  # Ctrl+T
@@ -437,42 +439,7 @@ def main_curses(stdscr):
     ui.display_message("Application démarrée. Appuyez sur '?' pour les commandes.", on_status_bar=True) # Message de statut initial
 
    
-    # Créer quelques pistes et charger des sons
-    player = adik_app.player
-    track1 = player.add_track("Drums")
-    track2 = player.add_track("Basse")
-    track3 = player.add_track("Synthé")
-    track4 = player.add_track("Bruit Blanc") # Nouvelle piste
-
-    # --- Utilisation des nouvelles fonctions de génération ---
-
-    # Onde sinusoïdale pour la piste 1
-    sine_sound = AdikSound.sine_wave(freq=440, dur=3, amp=0.2, sample_rate=sample_rate, num_channels=num_output_channels)
-    track1.set_audio_sound(sine_sound)
-    ui.display_message(f"Piste 'Batterie' chargée avec une onde sinus de {sine_sound.name}", on_status_bar=True)
-
-    # Onde carrée pour la piste 2 (synthé)
-    square_sound = AdikSound.square_wave(freq=220, dur=2, amp=0.1, sample_rate=sample_rate, num_channels=1, duty_cycle=0.6)
-    track2.set_audio_sound(square_sound)
-    ui.display_message(f"Piste 'Synthé' chargée avec une onde carrée de {square_sound.name}", on_status_bar=True)
-
-    # Bruit blanc pour la nouvelle piste 4
-    noise_sound = AdikSound.white_noise(dur=5, amp=0.1, sample_rate=sample_rate, num_channels=1)
-    track3.set_audio_sound(noise_sound)
-    ui.display_message(f"Piste 'Bruit Blanc' chargée avec du {noise_sound.name}", on_status_bar=True)
-    file_name1 = "/home/com/audiotest/rhodes.wav" 
-    if not os.path.exists(file_name1):
-        print(f"Erreur: le fichier ({file_name1}, n'existe pas")
-        return
-    loaded_sound = AdikWaveHandler.load_wav(file_name1)
-    if loaded_sound:
-        track4.set_audio_sound(loaded_sound)
-        track4.volume = 0.2
-    else:
-        print(f"Erreur: Impossible de charger '{file_name1}' pour les pistes.")
-        return # Quitter si le son ne peut pas être chargé
-
-    
+   
     # Démarrer le moteur Audio
     # Boucle principale de l'application
     running = True
