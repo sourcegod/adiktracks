@@ -43,9 +43,29 @@ class AdikApp(object):
     def init_app(self, sample_rate=44100, block_size=256, num_output_channels=2, num_input_channels=1):
         self.player = AdikPlayer(sample_rate, block_size, num_output_channels, num_input_channels)
         self.mixer = self.player.mixer
+        self.player._start_engine()
         self.display_message("AdikApp initialisée.")
 
     #----------------------------------------
+
+    def close_app(self):
+        """ Close the Application controller """
+        if self.player is not None:
+            self.player.stop()
+            self.player._stop_engine()
+
+        self.display_message("AdikApp Terminée.")
+
+    #----------------------------------------
+
+
+    def set_UI_app(self, ui_app):
+        """ Attacher une Interface d'Utilisateur à cette classe  controlleur d'Application """
+        if ui_app is not None:
+            self._ui_app = ui_app
+   
+    #----------------------------------------
+
 
     #----------------------------------------
     # Player Controls (déplacé depuis AdikTUI.key_handler)

@@ -13,13 +13,19 @@ import time
 from adik_sound import AdikSound
 from adik_wave_handler import AdikWaveHandler
 from adik_player import AdikPlayer
+from adik_app import AdikApp
 
 
 class AdikTUI(object):
     """ Text User Interface manager object, using curses library """
-    def __init__(self, stdscr, player):
+    def __init__(self, stdscr, adik_app):
         self.stdscr = stdscr
-        self.player = player
+        # self._app.player = player
+        self._app = None
+        if adik_app is not None:
+            self._app = adik_app
+            # Attacher une Interface d'Utilisateur aucontroleur d'application
+            adik_app.set_UI_app(self)
         
         # Initialisation de l'écran Curses
         self.stdscr.clear()
@@ -94,7 +100,7 @@ class AdikTUI(object):
 
         # Définir la ligne de début pour les messages de statut dans la track_window
         # Nous allons placer les messages de statut après les commandes.
-        status_start_row_in_track_window = len(self.player.tracks) + 7 # Sous les commandes
+        status_start_row_in_track_window = len(self._app.player.tracks) + 7 # Sous les commandes
         
         # Effacer la zone de statut
         for i in range(self.max_status_messages):
@@ -134,12 +140,12 @@ class AdikTUI(object):
         """
         self.info_window.clear()
         self.info_window.addstr(0, 0, "--- AdikTracks Player ---") # Redessiner l'en-tête
-        self.info_window.addstr(1, 0, f"Temps: {self.player.current_time_seconds:.2f}s / {self.player.total_duration_seconds:.2f}s")
+        self.info_window.addstr(1, 0, f"Temps: {self._app.player.current_time_seconds:.2f}s / {self._app.player.total_duration_seconds:.2f}s")
         # Mettre à jour la ligne de statut pour inclure un état 'RECORDING' potentiel
-        player_status_str = 'LECTURE' if self.player.is_playing() else ('ENREGISTREMENT' if getattr(self.player, '_recording', False) else 'ARRÊTÉ')
+        player_status_str = 'LECTURE' if self._app.player.is_playing() else ('ENREGISTREMENT' if getattr(self._app.player, '_recording', False) else 'ARRÊTÉ')
         self.info_window.addstr(2, 0, f"Statut: {player_status_str}") 
         
-        selected_track = self.player.get_selected_track()
+        selected_track = self._app.player.get_selected_track()
         self.info_window.addstr(3, 0, f"Piste sélectionnée: {selected_track.name if selected_track else 'Aucune'}")
         self.info_window.refresh()
 
@@ -149,13 +155,13 @@ class AdikTUI(object):
         à partir du haut de la fenêtre des pistes (track_window).
         """
         # Effacer uniquement la zone de la liste des pistes, pas toute la fenêtre
-        for i in range(1, len(self.player.tracks) + 1):
+        for i in range(1, len(self._app.player.tracks) + 1):
             self.track_window.move(i, 0)
             self.track_window.clrtoeol() # Effacer jusqu'à la fin de la ligne
         
         self.track_window.addstr(0, 0, "Pistes:") # Redessiner l'étiquette "Pistes:"
-        for i, track in enumerate(self.player.tracks):
-            prefix = "-> " if i == self.player.selected_track_idx else "   "
+        for i, track in enumerate(self._app.player.tracks):
+            prefix = "-> " if i == self._app.player.selected_track_idx else "   "
             status = []
             if track.is_muted(): status.append("M")
             if track._solo: status.append("S")
@@ -178,7 +184,7 @@ class AdikTUI(object):
     
     def display_commands(self):
         """Affiche les raccourcis de commande dans la fenêtre des pistes."""
-        start_row = len(self.player.tracks) + 2 # Position après la liste des pistes
+        start_row = len(self._app.player.tracks) + 2 # Position après la liste des pistes
         
         # Effacer d'abord la zone des commandes
         for i in range(start_row, start_row + 7): # Effacer 7 lignes pour les commandes et le statut
@@ -204,6 +210,74 @@ class AdikTUI(object):
     #----------------------------------------
 
 
+    
+    def key_handler(self, key):
+        """
+        Gère les pressions de touches et appelle les méthodes appropriées de l'application,
+        affichant les messages de statut.
+        Retourne True si l'application doit continuer, False si elle doit quitter.
+        """
+        running = True
+        
+        # Appel des méthodes de la classe AdikApp
+        if key == ord('Q'):
+            running = False
+            self._app.display_message("Fermeture de l'application...")
+        elif key == ord(' '):
+            self._app.toggle_play_pause()
+        elif key == ord('a'):
+            self._app.toggle_arm_track()
+        elif key == ord('b') or key == ord('B'):
+            self._app.forward()
+        elif key == ord('k'):
+            self._app.toggle_click()
+        elif key == ord('l'):
+            self._app.toggle_loop()
+        elif key == ord('r') or key == ord('R'):
+            self._app.toggle_record()
+        elif key == ord('s'):
+            self._app.toggle_solo_track()
+        elif key == ord('v') or key == ord('V'):
+            self._app.stop_playback()
+        elif key == ord('w') or key == ord('W'):
+            self._app.backward()
+        elif key == ord('x'):
+            self._app.toggle_mute_track()
+        elif key == ord('<'):
+            self._app.go_to_start()
+        elif key == ord('>'):
+            self._app.go_to_end()
+        elif key == 12:  # Ctrl+L
+            self._app.set_loop_points()
+        elif key == 18:  # Ctrl+R
+            self._app.toggle_recording_mode()
+        elif key == 20:  # Ctrl+T
+            self._app.add_new_track()
+        elif key == 23:  # Ctrl+W
+            self._app.save_recording()
+        elif key == ord('+') or key == ord('='):
+            self._app.increase_volume()
+        elif key == ord('-') or key == ord('_'):
+            self._app.decrease_volume()
+        elif key == ord('[') or key == ord('{'):
+            self._app.pan_left()
+        elif key == ord(']') or key == ord('}'):
+            self._app.pan_right()
+        elif key == curses.KEY_UP:
+            self._app.select_previous_track()
+        elif key == curses.KEY_DOWN:
+            self._app.select_next_track()
+        elif key == curses.KEY_DC:
+            self._app.delete_selected_track()
+        else:
+            self._app.display_message(f"Touche '{chr(key)}' ({key}) non reconnue.")
+            curses.beep()
+        
+        return running
+
+    #----------------------------------------
+    
+    '''
     def key_handler(self, key):
         """
         Gère les pressions de touches et appelle les méthodes appropriées du lecteur,
@@ -211,20 +285,20 @@ class AdikTUI(object):
         Retourne True si l'application doit continuer, False si elle doit quitter.
         """
         running = True
-        selected_track = self.player.get_selected_track()
+        selected_track = self._app.player.get_selected_track()
         if key == ord('Q'): # Q: Quitter
             running = False
             self.display_message("Fermeture de l'application...")
 
         elif key == ord(' '): # Espace: Lecture/Pause
-            if self.player.is_playing():
-                self.player.pause()
+            if self._app.player.is_playing():
+                self._app.player.pause()
                 self.display_message("Lecteur en pause.")
-            elif self.player.is_recording():
-                self.player.stop_recording()
+            elif self._app.player.is_recording():
+                self._app.player.stop_recording()
                 self.display_message("Enregistrement arrêté (par Espace).")
             else:
-                self.player.play()
+                self._app.player.play()
                 self.display_message("Lecteur en lecture.")
         elif key == ord('a'): # a: armé piste
             if selected_track:
@@ -233,37 +307,37 @@ class AdikTUI(object):
             else:
                 self.display_message("Aucune piste sélectionnée.")
         elif key == ord('b') or key == ord('B'): # B: Avance rapide
-            self.player.forward()
-            self.display_message(f"Avance rapide à {self.player.current_time_seconds:.2f}s.")
+            self._app.player.forward()
+            self.display_message(f"Avance rapide à {self._app.player.current_time_seconds:.2f}s.")
         elif key == ord('k'): # 'k'
-            self.player.toggle_click()
+            self._app.player.toggle_click()
         elif key == ord('l'): # 'l'
-            self.player.toggle_loop()
+            self._app.player.toggle_loop()
 
         elif key == ord('r') or key == ord('R'): # R: Enregistrement
-            if self.player.is_recording():
-                self.player.stop_recording()
+            if self._app.player.is_recording():
+                self._app.player.stop_recording()
                 self.display_message("Enregistrement arrêté.")
             else:
-                self.player.start_recording()
+                self._app.player.start_recording()
                 self.display_message("Enregistrement démarré.")
 
         elif key == ord('s'): # s: Solo la piste sélectionnée
             if selected_track:
                 selected_track._solo = not selected_track._solo
                 if selected_track._solo:
-                    for track in self.player.tracks:
+                    for track in self._app.player.tracks:
                         if track != selected_track and track._solo:
                             track._solo = False
                 self.display_message(f"Piste '{selected_track.name}' Solo: {selected_track._solo}")
             else:
                 self.display_message("Aucune piste sélectionnée.")
         elif key == ord('v') or key == ord('V'): # V: Arrêt
-            self.player.stop()
+            self._app.player.stop()
             self.display_message("Lecteur arrêté.")
         elif key == ord('w') or key == ord('W'): # W: Retour rapide
-            self.player.backward()
-            self.display_message(f"Retour rapide à {self.player.current_time_seconds:.2f}s.")
+            self._app.player.backward()
+            self.display_message(f"Retour rapide à {self._app.player.current_time_seconds:.2f}s.")
         elif key == ord('x'): # x: Mute la piste sélectionnée
             if selected_track:
                 selected_track._muted = not selected_track._muted
@@ -271,21 +345,21 @@ class AdikTUI(object):
             else:
                 self.display_message("Aucune piste sélectionnée.")
         elif key == ord('<'): # <: Aller au début
-            self.player.goto_start()
+            self._app.player.goto_start()
             self.display_message("Aller au début.")
         elif key == ord('>'): # >: Aller à la fin
-            self.player.goto_end()
+            self._app.player.goto_end()
             self.display_message("Aller à la fin.")
         elif key == 12: # Ctrl+L
-            self.player.set_loop_points(0, 30)
+            self._app.player.set_loop_points(0, 30)
         elif key == 18: # Ctrl+R
-            self.player.toggle_recording_mode()
+            self._app.player.toggle_recording_mode()
 
         elif key == 20: # Ctrl+T: Ajouter une piste
-            self.player.add_track()
+            self._app.player.add_track()
             self.display_message("Nouvelle piste ajoutée.")
         elif key == 23: # Ctrl+W: sauvegarder le fichier enregistré
-            if self.player.save_recording():
+            if self._app.player.save_recording():
                 self.display_message("Fichier Sauvegardé")
             else:
                 self.display_message("Fichier non Sauvegardé")
@@ -315,23 +389,23 @@ class AdikTUI(object):
             else:
                 self.display_message("Aucune piste sélectionnée.")
         elif key == curses.KEY_UP: # Flèche haut: Sélectionner piste précédente
-            if self.player.selected_track_idx > 0:
-                self.player.select_track(self.player.selected_track_idx - 1)
-                self.display_message(f"Piste sélectionnée: {self.player.get_selected_track().name}")
+            if self._app.player.selected_track_idx > 0:
+                self._app.player.select_track(self._app.player.selected_track_idx - 1)
+                self.display_message(f"Piste sélectionnée: {self._app.player.get_selected_track().name}")
             else:
                 curses.beep()
                 self.display_message("Déjà à la première piste.")
         elif key == curses.KEY_DOWN: # Flèche bas: Sélectionner piste suivante
-            if self.player.selected_track_idx < len(self.player.tracks) - 1:
-                self.player.select_track(self.player.selected_track_idx + 1)
-                self.display_message(f"Piste sélectionnée: {self.player.get_selected_track().name}")
+            if self._app.player.selected_track_idx < len(self._app.player.tracks) - 1:
+                self._app.player.select_track(self._app.player.selected_track_idx + 1)
+                self.display_message(f"Piste sélectionnée: {self._app.player.get_selected_track().name}")
             else:
                 self.display_message("Déjà à la dernière piste.")
                 curses.beep()
         elif key == curses.KEY_DC: # touche Delete/Suppr.
             if selected_track:
                 track_name = selected_track.name
-                self.player.delete_track(self.player.selected_track_idx)
+                self._app.player.delete_track(self._app.player.selected_track_idx)
                 self.display_message(f"Piste '{track_name}' supprimée.")
             else:
                 self.display_message("Aucune piste sélectionnée à supprimer.")
@@ -342,6 +416,8 @@ class AdikTUI(object):
         return running
 
     #----------------------------------------
+    '''
+
 
 #========================================
 
@@ -352,14 +428,17 @@ def main_curses(stdscr):
     num_output_channels = 2
     num_input_channels = 1
 
-    player = AdikPlayer(sample_rate, block_size, num_output_channels, num_input_channels)
+    adik_app = AdikApp()
+    adik_app.init_app(sample_rate, block_size, num_output_channels, num_input_channels)
 
-     # Initialiser la classe MainWindow pour l'interface utilisateur Curses
-    ui = AdikTUI(stdscr, player)
+    # Initialiser la classe MainWindow pour l'interface utilisateur Curses
+    # Passe l'instance de l'application controlleur à l'interface d'Utilisateur, et indique au controlleur l'interface à utiliser.
+    ui = AdikTUI(stdscr, adik_app)
     ui.display_message("Application démarrée. Appuyez sur '?' pour les commandes.", on_status_bar=True) # Message de statut initial
 
    
     # Créer quelques pistes et charger des sons
+    player = adik_app.player
     track1 = player.add_track("Drums")
     track2 = player.add_track("Basse")
     track3 = player.add_track("Synthé")
@@ -395,7 +474,6 @@ def main_curses(stdscr):
 
     
     # Démarrer le moteur Audio
-    player._start_engine()
     # Boucle principale de l'application
     running = True
     # Ici, on ne met pas de block try/catch... car c'est fait autre part, à l'appel de cette fonction, ce qui permet d'afficher les tracebacks.
@@ -414,8 +492,8 @@ def main_curses(stdscr):
         # Pour des mises à jour continues pendant la lecture, il faudrait un getch() non bloquant
         # et un thread de mise à jour de l'interface utilisateur séparé ou un petit timeout dans getch().
     # End of while loop
-    beep()
-    player.stop() 
+    curses.beep()
+    adik_app.close_app()
     print("Application terminée.")
 
 #----------------------------------------
