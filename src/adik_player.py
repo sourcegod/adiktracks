@@ -91,7 +91,20 @@ class AdikPlayer:
         return False
 
     #----------------------------------------
-
+    
+    def remove_all_tracks(self):
+        """
+        Supprime toutes les pistes et nettoie les données associées.
+        """
+        self.stop()  # Arrêter la lecture avant de supprimer les pistes
+        for track in self.track_list:
+            # Nettoyer les ressources de chaque piste si nécessaire
+            if hasattr(track, 'audio_data'):
+                del track.audio_data
+        self.track_list = []
+        self.selected_track_idx = -1
+        # Mettre à jour la durée totale et d'autres paramètres
+        self._update_params()
     def select_track(self, track_idx):
         if 0 <= track_idx < len(self.track_list):
             self.selected_track_idx = track_idx

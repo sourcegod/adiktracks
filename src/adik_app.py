@@ -187,6 +187,15 @@ class AdikApp(object):
             self.display_message("Aucune piste sélectionnée à supprimer.")
 
     #----------------------------------------
+
+    def remove_all_tracks(self):
+        """
+        Supprime toutes les pistes et nettoie les données associées.
+        """
+        self.player.remove_all_tracks()
+        self.display_message("Toutes les pistes ont été supprimées.")
+
+    #----------------------------------------
  
     #----------------------------------------
     # Track Controls (déplacé depuis AdikTUI.key_handler)
@@ -303,6 +312,7 @@ class AdikApp(object):
         num_input_channels = 1
 
         # Créer quelques pistes et charger des sons
+        self.remove_all_tracks()
         player = self.player
         track1 = player.add_track("Drums")
         track2 = player.add_track("Basse")
