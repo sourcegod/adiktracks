@@ -100,7 +100,7 @@ class AdikTUI(object):
 
         # Définir la ligne de début pour les messages de statut dans la track_window
         # Nous allons placer les messages de statut après les commandes.
-        status_start_row_in_track_window = len(self._app.player.tracks) + 7 # Sous les commandes
+        status_start_row_in_track_window = len(self._app.player.track_list) + 7 # Sous les commandes
         
         # Effacer la zone de statut
         for i in range(self.max_status_messages):
@@ -155,12 +155,12 @@ class AdikTUI(object):
         à partir du haut de la fenêtre des pistes (track_window).
         """
         # Effacer uniquement la zone de la liste des pistes, pas toute la fenêtre
-        for i in range(1, len(self._app.player.tracks) + 1):
+        for i in range(1, len(self._app.player.track_list) + 1):
             self.track_window.move(i, 0)
             self.track_window.clrtoeol() # Effacer jusqu'à la fin de la ligne
         
         self.track_window.addstr(0, 0, "Pistes:") # Redessiner l'étiquette "Pistes:"
-        for i, track in enumerate(self._app.player.tracks):
+        for i, track in enumerate(self._app.player.track_list):
             prefix = "-> " if i == self._app.player.selected_track_idx else "   "
             status = []
             if track.is_muted(): status.append("M")
@@ -184,7 +184,7 @@ class AdikTUI(object):
     
     def display_commands(self):
         """Affiche les raccourcis de commande dans la fenêtre des pistes."""
-        start_row = len(self._app.player.tracks) + 2 # Position après la liste des pistes
+        start_row = len(self._app.player.track_list) + 2 # Position après la liste des pistes
         
         # Effacer d'abord la zone des commandes
         for i in range(start_row, start_row + 7): # Effacer 7 lignes pour les commandes et le statut
@@ -328,7 +328,7 @@ class AdikTUI(object):
             if selected_track:
                 selected_track._solo = not selected_track._solo
                 if selected_track._solo:
-                    for track in self._app.player.tracks:
+                    for track in self._app.player.track_list:
                         if track != selected_track and track._solo:
                             track._solo = False
                 self.display_message(f"Piste '{selected_track.name}' Solo: {selected_track._solo}")
@@ -398,7 +398,7 @@ class AdikTUI(object):
                 curses.beep()
                 self.display_message("Déjà à la première piste.")
         elif key == curses.KEY_DOWN: # Flèche bas: Sélectionner piste suivante
-            if self._app.player.selected_track_idx < len(self._app.player.tracks) - 1:
+            if self._app.player.selected_track_idx < len(self._app.player.track_list) - 1:
                 self._app.player.select_track(self._app.player.selected_track_idx + 1)
                 self.display_message(f"Piste sélectionnée: {self._app.player.get_selected_track().name}")
             else:

@@ -209,7 +209,7 @@ class AdikApp(object):
         if selected_track:
             selected_track._solo = not selected_track._solo
             if selected_track._solo:
-                for track in self.player.tracks:
+                for track in self.player.track_list:
                     if track != selected_track and track._solo:
                         track._solo = False
             self.display_message(f"Piste '{selected_track.name}' Solo: {selected_track._solo}")
@@ -286,7 +286,7 @@ class AdikApp(object):
  
     def select_next_track(self):
         """ Sélectionne la piste suivante. """
-        if self.player.selected_track_idx < len(self.player.tracks) - 1:
+        if self.player.selected_track_idx < len(self.player.track_list) - 1:
             self.player.select_track(self.player.selected_track_idx + 1)
             self.display_message(f"Piste sélectionnée: {self.player.get_selected_track().name}")
         else:

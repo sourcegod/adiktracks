@@ -32,7 +32,7 @@ class AdikPlayer:
 
         self.mixer = AdikMixer(self.sample_rate, self.num_output_channels)
 
-        self.tracks = [] # Liste des objets AdikTrack
+        self.track_list = [] # Liste des objets AdikTrack
         self.selected_track_idx = -1 # Index de la piste sélectionnée
         self.current_playback_frame = 0 # Position globale du player en frames
         self._playing = False
@@ -64,10 +64,10 @@ class AdikPlayer:
     # --- Gestion des Pistes ---
     def add_track(self, name=None):
         if name is None:
-            name = f"Piste {len(self.tracks) + 1}"
+            name = f"Piste {len(self.track_list) + 1}"
         track = AdikTrack(name=name, sample_rate=self.sample_rate, num_channels=self.num_output_channels)
-        self.tracks.append(track)
-        self.select_track(len(self.tracks) - 1) # Sélectionne la nouvelle piste par défaut
+        self.track_list.append(track)
+        self.select_track(len(self.track_list) - 1) # Sélectionne la nouvelle piste par défaut
         # self._update_total_duration_cache() # Mettre à jour la durée totale
         # Mettre à jour la durée totale et d'autres paramètres
         self._update_params()
@@ -77,11 +77,11 @@ class AdikPlayer:
     #----------------------------------------
 
     def delete_track(self, track_idx):
-        if 0 <= track_idx < len(self.tracks):
-            deleted_track = self.tracks.pop(track_idx)
+        if 0 <= track_idx < len(self.track_list):
+            deleted_track = self.track_list.pop(track_idx)
             print(f"Piste supprimée: {deleted_track.name}")
             if self.selected_track_idx == track_idx:
-                self.selected_track_idx = max(-1, len(self.tracks) - 1) # Plus de piste sélectionnée si c'était celle-là
+                self.selected_track_idx = max(-1, len(self.track_list) - 1) # Plus de piste sélectionnée si c'était celle-là
             elif self.selected_track_idx > track_idx:
                 self.selected_track_idx -= 1 # Ajuster l'index si une piste avant a été supprimée
             # self._update_total_duration_cache() # Mettre à jour la durée totale
@@ -93,9 +93,9 @@ class AdikPlayer:
     #----------------------------------------
 
     def select_track(self, track_idx):
-        if 0 <= track_idx < len(self.tracks):
+        if 0 <= track_idx < len(self.track_list):
             self.selected_track_idx = track_idx
-            # print(f"Piste sélectionnée: {self.tracks[self.selected_track_idx].name}")
+            # print(f"Piste sélectionnée: {self.track_list[self.selected_track_idx].name}")
             return True
         # print(f"Erreur: Index de piste invalide ({track_idx}) pour la sélection.")
         return False
@@ -103,8 +103,8 @@ class AdikPlayer:
     #----------------------------------------
 
     def get_selected_track(self):
-        if 0 <= self.selected_track_idx < len(self.tracks):
-            return self.tracks[self.selected_track_idx]
+        if 0 <= self.selected_track_idx < len(self.track_list):
+            return self.track_list[self.selected_track_idx]
         return None
         
     #----------------------------------------
@@ -115,7 +115,7 @@ class AdikPlayer:
         """
         # with self._lock:
         max_duration_frames = 0
-        for track in self.tracks:
+        for track in self.track_list:
             if track.audio_sound:
                 track_end_frame = track.offset_frames + track.audio_sound.length_frames
                 if track_end_frame > max_duration_frames:
@@ -193,7 +193,7 @@ class AdikPlayer:
                 self._finish_recording()
             
             self.current_playback_frame = 0
-            for track in self.tracks:
+            for track in self.track_list:
                 track.reset_playback_position() # Utilise la méthode correcte
             
         # Appelle la méthode de l'engine pour arrêter le stream
@@ -295,7 +295,7 @@ class AdikPlayer:
                 selected_track.set_playback_position(self.current_playback_frame)
 
             else:
-                new_track_name = f"Piste Enregistrée {len(self.tracks) + 1}"
+                new_track_name = f"Piste Enregistrée {len(self.track_list) + 1}"
                 new_track = self.add_track(new_track_name)
                 
                 take_length_frames = recorded_sound_data.size // self.num_input_channels
@@ -396,7 +396,7 @@ class AdikPlayer:
                 return
 
             self.current_playback_frame = new_position
-            for track in self.tracks:
+            for track in self.track_list:
                 track.set_playback_position(self.current_playback_frame) # Utilise la méthode correcte
             
             # Mise à jour de current_time_seconds car set_position peut être appelée en dehors du callback
@@ -609,9 +609,9 @@ class AdikPlayer:
                     pass
 
             else: # self._playing 
-                solo_active = any(track.is_solo() for track in self.tracks)
+                solo_active = any(track.is_solo() for track in self.track_list)
 
-                for track in self.tracks:
+                for track in self.track_list:
                     should_mix_track = True
                     if solo_active and not track.is_solo():
                         should_mix_track = False
@@ -640,14 +640,14 @@ class AdikPlayer:
                 if self.is_looping and self.current_playback_frame >= self.loop_end_frame:
                     self.current_playback_frame = self.loop_start_frame
                     self.metronome.playback_frame = self.current_playback_frame
-                    for track in self.tracks:
+                    for track in self.track_list:
                         track.playback_position = self.current_playback_frame
                     print(f"Player: Boucle terminée, repositionnement à {self.current_playback_frame} frames.")
                 
                 # Gérer l'arrêt en fin de lecture si le bouclage n'est pas actif
                 elif not self.is_looping:
                     all_tracks_finished = True
-                    for track in self.tracks:
+                    for track in self.track_list:
                         if track.audio_sound:
                             if self.current_playback_frame < (track.offset_frames + track.audio_sound.length_frames):
                                 all_tracks_finished = False
@@ -708,9 +708,9 @@ class AdikPlayer:
                     pass
 
             else: # self._playing 
-                solo_active = any(track.is_solo() for track in self.tracks)
+                solo_active = any(track.is_solo() for track in self.track_list)
 
-                for track in self.tracks:
+                for track in self.track_list:
                     should_mix_track = True
                     if solo_active and not track.is_solo():
                         should_mix_track = False
@@ -739,14 +739,14 @@ class AdikPlayer:
                 if self.is_looping and self.current_playback_frame >= self.loop_end_frame:
                     self.current_playback_frame = self.loop_start_frame
                     self.metronome.playback_frame = self.current_playback_frame
-                    for track in self.tracks:
+                    for track in self.track_list:
                         track.playback_position = self.current_playback_frame
                     print(f"Player: Boucle terminée, repositionnement à {self.current_playback_frame} frames.")
                 
                 # Gérer l'arrêt en fin de lecture si le bouclage n'est pas actif
                 elif not self.is_looping:
                     all_tracks_finished = True
-                    for track in self.tracks:
+                    for track in self.track_list:
                         if track.audio_sound:
                             if self.current_playback_frame < (track.offset_frames + track.audio_sound.length_frames):
                                 all_tracks_finished = False
