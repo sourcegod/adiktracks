@@ -95,6 +95,7 @@ class AdikTrack:
             self.audio_sound = sound
             
         self.offset_frames = offset_frames
+        self._update_duration()
         print(f"Son '{self.audio_sound.name}' assigné à la piste '{self.name}' avec un offset de {self.offset_frames} frames.")
 
     #----------------------------------------
@@ -107,6 +108,12 @@ class AdikTrack:
 
     #----------------------------------------
 
+    def set_audio_data(self, audio_data):
+        if self.audio_sound is not None:
+            self.audio_sound.set_audio_data(audio_data)
+            self._update_duration()
+
+    #----------------------------------------
 
     def get_audio_block(self, num_frames_to_generate):
         """

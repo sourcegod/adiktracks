@@ -126,7 +126,7 @@ class AdikPlayer:
             end_sample = int(end_frame * track.num_channels)
             
             # S'assurer que les trames sont dans les limites valides
-            length_samples = audio_data.size
+            length_samples = track.audio_sound.length_samples
             start_sample = max(0, start_sample)
             end_sample = min(length_samples, end_sample)
 
@@ -141,10 +141,11 @@ class AdikPlayer:
                 new_audio_data = AdikSound.concat_audio_data(part_before, part_after)
 
                 # Mettre à jour les données audio de la piste
-                track.audio_sound.audio_data = new_audio_data
+                track.set_audio_data(new_audio_data)
                 
                 # Mettre à jour les paramètres de la piste (durée, etc.)
-                track._update_duration()
+                # Ceci est déjà fait depuis la fonction set_audio_data
+                # track._update_duration()
                 self._update_params()
                 
                 print(f"Données audio de la piste '{track.name}' supprimées de la trame {start_frame} à {end_frame}. Nouvelle longueur: {len(new_audio_data)} samples.")
@@ -170,7 +171,7 @@ class AdikPlayer:
             end_sample = int(end_frame * track.num_channels)
             
             # S'assurer que les trames sont dans les limites valides
-            length_samples = audio_data.size
+            length_samples = track.audio_sound.length_samples
             start_sample = max(0, start_sample)
             end_sample = min(length_samples, end_sample)
 

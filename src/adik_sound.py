@@ -38,6 +38,21 @@ class AdikSound:
 
     #----------------------------------------
 
+    def get_audio_data(self):
+        """ retourne le buffer de données audio """
+        return self.audio_data
+
+    #----------------------------------------
+
+    def set_audio_data(self, audio_data):
+        """ assigne un noubeau buffer au buffer de données audio """
+        if audio_data is None: return
+        self.audio_data = audio_data
+        self.update_params()
+
+    #----------------------------------------
+
+
     def update_params(self):
         """
         Met à jour les paramètres de longueur du son après une modification
