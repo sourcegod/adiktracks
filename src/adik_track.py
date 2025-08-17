@@ -39,6 +39,7 @@ class AdikTrack:
         return self._muted
 
     #----------------------------------------
+
     def is_solo(self):
         return self._solo
 
@@ -46,6 +47,21 @@ class AdikTrack:
 
     def is_armed(self):
         return self._armed
+
+    #----------------------------------------
+
+    def _update_duration(self):
+        """
+        Met à jour la longueur en frames et en secondes de la piste
+        en fonction de la taille de ses données audio.
+        Cette fonction est essentielle pour les opérations d'édition.
+        """
+        if self.audio_sound is not None:
+            self.length_frames = self.audio_sound.length_frames
+            self.length_seconds = self.audio_sound.length_seconds
+        else:
+            self.length_frames = 0
+            self.length_seconds = 0.0
 
     #----------------------------------------
 
@@ -82,6 +98,15 @@ class AdikTrack:
         print(f"Son '{self.audio_sound.name}' assigné à la piste '{self.name}' avec un offset de {self.offset_frames} frames.")
 
     #----------------------------------------
+
+    def get_audio_data(self):
+        if self.audio_sound is not None:
+            return self.audio_sound.audio_data
+
+        return
+
+    #----------------------------------------
+
 
     def get_audio_block(self, num_frames_to_generate):
         """

@@ -108,6 +108,54 @@ class AdikPlayer:
 
     #----------------------------------------
 
+    def delete_audio_from_track(self, track_index: int, start_frame: int, end_frame: int):
+        """
+        Supprime complètement les données audio d'une piste entre les positions
+        start_frame et end_frame. La longueur de la piste est réduite.
+        """
+        if 0 <= track_index < len(self.track_list):
+            track = self.track_list[track_index]
+            audio_data = track.get_audio_data()
+            
+            if audio_data is None:
+                print(f"Avertissement: La piste '{track.name}' est vide, aucune suppression n'a été effectuée.")
+                return
+
+            # Les indices de trames sont convertis en indices de samples
+            start_sample = int(start_frame * track.num_channels)
+            end_sample = int(end_frame * track.num_channels)
+            
+            # S'assurer que les trames sont dans les limites valides
+            length_samples = audio_data.size
+            start_sample = max(0, start_sample)
+            end_sample = min(length_samples, end_sample)
+
+            if start_sample < end_sample:
+                # Créer une nouvelle liste de données audio
+                # en ignorant la partie à supprimer
+                part_before = audio_data[:start_sample]
+                part_after = audio_data[end_sample:]
+
+                # Utiliser AdikSound.concat_audio_data pour joindre les deux segments
+                # au lieu de l'opérateur '+'
+                new_audio_data = AdikSound.concat_audio_data(part_before, part_after)
+
+                # Mettre à jour les données audio de la piste
+                track.audio_sound.audio_data = new_audio_data
+                
+                # Mettre à jour les paramètres de la piste (durée, etc.)
+                track._update_duration()
+                self._update_params()
+                
+                print(f"Données audio de la piste '{track.name}' supprimées de la trame {start_frame} à {end_frame}. Nouvelle longueur: {len(new_audio_data)} samples.")
+            else:
+                print("Avertissement: Les trames de début et de fin sont invalides.")
+        else:
+            print(f"Erreur: Index de piste invalide ({track_index}).")
+
+    #----------------------------------------
+
+    '''
     def delete_audio_from_track(self, track_index, start_frame, end_frame):
         """
         Supprime complètement les données audio d'une piste entre les positions
@@ -140,6 +188,7 @@ class AdikPlayer:
             print(f"Erreur: Index de piste invalide ({track_index}).")
 
     #----------------------------------------
+    '''
 
     def erase_audio_from_track(self, track_index, start_frame, end_frame):
         """

@@ -196,6 +196,33 @@ class AdikApp(object):
         self.display_message("Toutes les pistes ont été supprimées.")
 
     #----------------------------------------
+    def delete_audio_from_track(self, start_frame=0, end_frame=-1):
+        """ Supprime les données audio de la piste sélectionnée. """
+        selected_track_idx = self.player.selected_track_idx
+        if selected_track_idx != -1:
+            if end_frame == -1:
+                end_frame = len(self.player.get_selected_track().get_audio_data())
+            self.player.delete_audio_from_track(selected_track_idx, start_frame, end_frame)
+            self.display_message(f"Audio supprimé de la piste '{self.player.get_selected_track().name}'.")
+        else:
+            self.display_message("Aucune piste sélectionnée pour supprimer l'audio.")
+
+    #----------------------------------------
+
+    def erase_audio_from_track(self, start_frame=0, end_frame=-1):
+        """ Efface les données audio (remplace par du silence) de la piste sélectionnée. """
+        selected_track_idx = self.player.selected_track_idx
+        if selected_track_idx != -1:
+            if end_frame == -1:
+                end_frame = len(self.player.get_selected_track().get_audio_data())
+                
+            self.player.erase_audio_from_track(selected_track_idx, start_frame, end_frame)
+            self.display_message(f"Audio effacé (silence) de la piste '{self.player.get_selected_track().name}'.")
+        else:
+            self.display_message("Aucune piste sélectionnée pour effacer l'audio.")
+
+    #----------------------------------------
+
  
     #----------------------------------------
     # Track Controls (déplacé depuis AdikTUI.key_handler)

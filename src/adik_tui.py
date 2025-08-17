@@ -229,6 +229,9 @@ class AdikTUI(object):
             self._app.toggle_arm_track()
         elif key == ord('b') or key == ord('B'):
             self._app.forward()
+        elif key == ord('D'): # d: effacer l'audio de la piste
+            self._app.erase_audio_from_track()
+
         elif key == ord('k'):
             self._app.toggle_click()
         elif key == ord('l'):
@@ -247,6 +250,9 @@ class AdikTUI(object):
             self._app.go_to_start()
         elif key == ord('>'):
             self._app.go_to_end()
+        elif key == 4:  # Ctrl+D: supprimer l'audio de la piste
+            self._app.delete_audio_from_track()
+
         elif key == 12:  # Ctrl+L
             self._app.set_loop_points()
         elif key == 16:  # Ctrl+P
