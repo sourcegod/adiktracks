@@ -66,6 +66,13 @@ class AdikTrack:
     #----------------------------------------
 
 
+    
+    def get_audio_sound(self):
+        """ Retourne l'objet AdikSound """
+        return self.audio_sound
+
+    #----------------------------------------
+
     def set_audio_sound(self, sound: AdikSound, offset_frames: int = 0):
         """
         Assigne un objet AdikSound à la piste.
