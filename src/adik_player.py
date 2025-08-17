@@ -155,41 +155,6 @@ class AdikPlayer:
 
     #----------------------------------------
 
-    '''
-    def delete_audio_from_track(self, track_index, start_frame, end_frame):
-        """
-        Supprime complètement les données audio d'une piste entre les positions
-        start_frame et end_frame. La longueur de la piste est réduite.
-        """
-        if 0 <= track_index < len(self.track_list):
-            track = self.track_list[track_index]
-            audio_data = track.get_audio_data()
-            
-            # Assurer que les trames sont dans les limites valides
-            start_frame = max(0, start_frame)
-            end_frame = min(len(audio_data), end_frame)
-            
-            if start_frame < end_frame:
-                # Créer une nouvelle liste de données audio
-                # en ignorant la partie à supprimer
-                new_audio_data = audio_data[:start_frame] + audio_data[end_frame:]
-                
-                # Mettre à jour les données audio de la piste
-                track.audio_data = new_audio_data
-                
-                # Mettre à jour les paramètres de la piste (durée, etc.)
-                track._update_duration()
-                self._update_params()
-                
-                print(f"Données audio de la piste '{track.name}' supprimées de la trame {start_frame} à {end_frame}.")
-            else:
-                print("Erreur: Les trames de début et de fin sont invalides.")
-        else:
-            print(f"Erreur: Index de piste invalide ({track_index}).")
-
-    #----------------------------------------
-    '''
-
     def erase_audio_from_track(self, track_index, start_frame, end_frame):
         """
         Remplace les données audio d'une piste par du silence (valeurs zéro)
@@ -200,15 +165,23 @@ class AdikPlayer:
             track = self.track_list[track_index]
             audio_data = track.get_audio_data()
             
-            # Assurer que les trames sont dans les limites valides
-            start_frame = max(0, start_frame)
-            end_frame = min(len(audio_data), end_frame)
-
-            # Remplir la section avec des zéros pour créer du silence
-            for i in range(start_frame, end_frame):
-                audio_data[i] = 0
+            # Les indices de trames sont convertis en indices de samples
+            start_sample = int(start_frame * track.num_channels)
+            end_sample = int(end_frame * track.num_channels)
             
-            print(f"Données audio de la piste '{track.name}' effacées (silence) de la trame {start_frame} à {end_frame}.")
+            # S'assurer que les trames sont dans les limites valides
+            length_samples = audio_data.size
+            start_sample = max(0, start_sample)
+            end_sample = min(length_samples, end_sample)
+
+            if start_sample < end_sample:
+                # Remplir la section avec des zéros pour créer du silence
+                for i in range(start_sample, end_sample):
+                    audio_data[i] = 0
+                
+                print(f"Données audio de la piste '{track.name}' effacées (silence) de la trame {start_frame} à {end_frame}.")
+            else:
+                print("Avertissement: Les trames de début et de fin sont invalides.")
         else:
             print(f"Erreur: Index de piste invalide ({track_index}).")
 
@@ -902,3 +875,14 @@ class AdikPlayer:
         return self.total_duration_seconds_cached
 
     #----------------------------------------
+
+#========================================
+
+if __name__ == "__main__":
+    # For testing
+    app = AdikPlayer()
+    # app.init_player()
+
+    input("It's OK...")
+    
+#----------------------------------------
