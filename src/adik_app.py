@@ -239,6 +239,16 @@ class AdikApp(object):
 
     #----------------------------------------
 
+    def save_track(self, start_frame=0, end_frame=-1, filename=None):
+        """ Sauvegarde dans un fichier Wav la piste sélectionnée. """
+        
+        if self.player.save_track(start_frame, end_frame, filename):
+            self.display_message("Fichier Sauvegardé")
+        else:
+            self.display_message("Fichier non Sauvegardé")
+
+    #----------------------------------------
+ 
 
     #----------------------------------------
     # Track Controls (déplacé depuis AdikTUI.key_handler)

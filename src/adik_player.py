@@ -62,6 +62,23 @@ class AdikPlayer:
     #----------------------------------------
 
     # --- Gestion des Pistes ---
+    def select_track(self, track_idx):
+        if 0 <= track_idx < len(self.track_list):
+            self.selected_track_idx = track_idx
+            # print(f"Piste sélectionnée: {self.track_list[self.selected_track_idx].name}")
+            return True
+        # print(f"Erreur: Index de piste invalide ({track_idx}) pour la sélection.")
+        return False
+
+    #----------------------------------------
+
+    def get_selected_track(self):
+        if 0 <= self.selected_track_idx < len(self.track_list):
+            return self.track_list[self.selected_track_idx]
+        return None
+        
+    #----------------------------------------
+
     def add_track(self, name=None):
         if name is None:
             name = f"Piste {len(self.track_list) + 1}"
@@ -259,22 +276,59 @@ class AdikPlayer:
         print(f"Mixage (bounce) terminé. Le son a été ajouté à la piste '{new_track.name}'.")
 
     #----------------------------------------
+    
+    def save_track(self, start_frame=0, end_frame=-1, filename=None):
+        """
+        Sauvegarde le contenu de la piste sélectionnée dans un fichier WAV.
+        Si aucun paramètre n'est spécifié, le son entier de la piste est sauvegardé.
+        """
+        selected_track = self.get_selected_track()
+        if selected_track is None:
+            print("Aucune piste n'est sélectionnée pour la sauvegarde.")
+            return False
 
-    def select_track(self, track_idx):
-        if 0 <= track_idx < len(self.track_list):
-            self.selected_track_idx = track_idx
-            # print(f"Piste sélectionnée: {self.track_list[self.selected_track_idx].name}")
-            return True
-        # print(f"Erreur: Index de piste invalide ({track_idx}) pour la sélection.")
-        return False
+        audio_sound = selected_track.get_audio_sound()
+        if audio_sound is None:
+            print(f"La piste '{selected_track.name}' est vide. Rien à sauvegarder.")
+            return False
 
-    #----------------------------------------
-
-    def get_selected_track(self):
-        if 0 <= self.selected_track_idx < len(self.track_list):
-            return self.track_list[self.selected_track_idx]
-        return None
+        # Déterminer les trames de début et de fin pour la sauvegarde
+        if end_frame == -1:
+            end_frame = audio_sound.length_frames
         
+        start_frame = max(0, start_frame)
+        end_frame = min(end_frame, audio_sound.length_frames)
+
+        if start_frame >= end_frame:
+            print("Les trames de début et de fin sont invalides pour la sauvegarde.")
+            return False
+            
+        # Extraire les données audio de la portion sélectionnée
+        start_sample = int(start_frame * audio_sound.num_channels)
+        end_sample = int(end_frame * audio_sound.num_channels)
+        
+        data_to_save = audio_sound.audio_data[start_sample:end_sample].copy()
+
+        # Créer un objet AdikSound temporaire pour la sauvegarde
+        sound_to_save = AdikSound(
+            name=audio_sound.name,
+            audio_data=data_to_save,
+            sample_rate=audio_sound.sample_rate,
+            num_channels=audio_sound.num_channels
+        )
+
+        if filename is None:
+            # Utilise un nom de fichier par défaut basé sur le nom de la piste
+            time_val = f"{time.strftime('%Y_%m_%d_%H%M%S')}"
+            filename = f"/tmp/adik_track_{selected_track.name.replace(' ', '_').replace(':', '')}_{time_val}.wav"
+
+        if AdikWaveHandler.save_wav(filename, sound_to_save):
+            print(f"Piste '{selected_track.name}' sauvegardée dans '{filename}'.")
+            return True
+        else:
+            print(f"Échec de la sauvegarde de la piste '{selected_track.name}' dans '{filename}'.")
+            return False
+
     #----------------------------------------
 
     def _update_total_duration_cache(self):

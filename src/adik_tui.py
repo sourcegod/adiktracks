@@ -270,7 +270,8 @@ class AdikTUI(object):
         elif key == 20:  # Ctrl+T
             self._app.add_new_track()
         elif key == 23:  # Ctrl+W
-            self._app.save_recording()
+            # self._app.save_recording()
+            self._app.save_track()
         elif key == ord('+') or key == ord('='):
             self._app.increase_volume()
         elif key == ord('-') or key == ord('_'):
