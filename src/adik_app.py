@@ -224,7 +224,22 @@ class AdikApp(object):
 
     #----------------------------------------
 
- 
+    def bounce_to_track(self, start_frame=0, end_frame=-1):
+        """
+        Appelle la fonction de mixage du lecteur avec les paramètres de trame
+        et affiche un message à l'utilisateur.
+        """
+        if len(self.player.track_list) == 0:
+            self.display_message("Il n'y a pas de pistes à mixer.")
+            return
+            
+        self.display_message("Mixage des pistes...")
+        self.player.bounce_to_track(start_frame=start_frame, end_frame=end_frame)
+        self.display_message("Mixage terminé. Une nouvelle piste a été créée.")
+
+    #----------------------------------------
+
+
     #----------------------------------------
     # Track Controls (déplacé depuis AdikTUI.key_handler)
     #----------------------------------------
@@ -374,7 +389,8 @@ class AdikApp(object):
         else:
             print(f"Erreur: Impossible de charger '{file_name1}' pour les pistes.")
             return # Quitter si le son ne peut pas être chargé
-
+        
+        self.player._update_params()
     #----------------------------------------
 
  

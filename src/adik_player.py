@@ -200,41 +200,45 @@ class AdikPlayer:
         # Déterminer la durée totale du mixage
         if end_frame == -1:
             end_frame = self.total_duration_frames_cached
-        
+     
         # S'assurer que les trames sont dans les limites
         start_frame = max(0, start_frame)
         end_frame = min(end_frame, self.total_duration_frames_cached)
-        
+     
         if start_frame >= end_frame:
-            print("Avertissement: Les trames de mixage sont invalides.")
+            print(f"Avertissement: Les trames de mixage sont invalides.: start_frame: {start_frame}, end_frame: {end_frame}")
             return
 
         mix_length_frames = end_frame - start_frame
-        
+     
         # Créer le tampon de mixage vide
         mix_buffer = AdikSound.new_audio_data(mix_length_frames * self.num_output_channels)
-        
+     
         # Sauvegarder la position de lecture pour la restaurer plus tard
-        saved_playback_position = self.current_playback_position
-        
+        saved_playback_position = self.current_playback_frame
+     
         solo_mode = self.has_solo_track()
-        
+     
         # Pour chaque piste, la lire et mixer le son dans le tampon
         for track in self.track_list:
             # Ne mixer que les pistes non muettes ou solo
             if track.is_muted() or (solo_mode and not track.is_solo()):
                 continue
-                
+             
             # Définir la position de lecture de la piste au début de la zone de mixage
             track.set_playback_position(start_frame)
-            
+             
             # Lire les données de la piste par blocs et les mixer
             num_frames_read = 0
             while num_frames_read < mix_length_frames:
-                frames_to_read = min(self.buffer_size, mix_length_frames - num_frames_read)
-                # Obtenir le bloc audio de la piste
-                # Mixer le bloc de la piste dans le tampon de mixage
-                track.mix_sound_data(mix_buffer, frames_to_read)
+                frames_to_read = min(self.block_size, mix_length_frames - num_frames_read)
+
+                # Créer une "vue" sur la partie du tampon de mixage où le mixage aura lieu
+                mix_slice = mix_buffer[num_frames_read * self.num_output_channels : (num_frames_read + frames_to_read) * self.num_output_channels]
+                 
+                # Mixer le bloc de la piste dans la tranche du tampon de mixage
+                track.mix_sound_data(mix_slice, frames_to_read)
+
                 num_frames_read += frames_to_read
 
         # Créer un nouvel objet AdikSound avec le son mixé
@@ -250,88 +254,11 @@ class AdikPlayer:
         new_track.set_audio_sound(bounced_sound, offset_frames=start_frame)
 
         # Restaurer la position de lecture du player
-        self.set_playback_position(saved_playback_position)
-        
+        self.set_position(saved_playback_position)
+         
         print(f"Mixage (bounce) terminé. Le son a été ajouté à la piste '{new_track.name}'.")
 
     #----------------------------------------
-    
-    '''
-    def bounce_to_track(self, start_frame=0, end_frame=-1):
-        """
-        Mixe toutes les pistes actives dans une nouvelle piste.
-        Prend en compte la durée totale du projet et les offsets.
-        
-        Args:
-            start_frame (int): La trame de début du mixage.
-            end_frame (int): La trame de fin du mixage.
-        """
-        # Déterminer la durée totale du mixage
-        if end_frame == -1:
-            end_frame = self.total_duration_frames_cached
-        
-        # S'assurer que les trames sont dans les limites
-        start_frame = max(0, start_frame)
-        end_frame = min(end_frame, self.total_duration_frames_cached)
-        
-        if start_frame >= end_frame:
-            print("Avertissement: Les trames de mixage sont invalides.")
-            return
-
-        mix_length_frames = end_frame - start_frame
-        
-        # Créer le tampon de mixage vide
-        mix_buffer = AdikSound.new_audio_data(mix_length_frames * self.num_output_channels)
-        
-        # Sauvegarder la position de lecture pour la restaurer plus tard
-        saved_playback_position = self.playback_position
-        
-        # Pour chaque piste, la lire et mixer le son dans le tampon
-        for track in self.track_list:
-            # Ne mixer que les pistes non muettes ou solo
-            if track.is_muted() or (self.has_solo_track() and not track.is_solo()):
-                continue
-                
-            # Définir la position de lecture de la piste au début de la zone de mixage
-            track.set_playback_position(start_frame)
-            
-            # Lire les données de la piste par blocs et les mixer
-            num_frames_read = 0
-            while num_frames_read < mix_length_frames:
-                frames_to_read = min(self.buffer_size, mix_length_frames - num_frames_read)
-                
-                # Obtenir le bloc audio de la piste
-                track_block = track.get_audio_block(frames_to_read)
-                
-                # Mixer le bloc de la piste dans le tampon de mixage
-                mix_buffer_segment = mix_buffer[num_frames_read * self.num_output_channels : (num_frames_read + frames_to_read) * self.num_output_channels]
-                
-                # On utilise une boucle pour le mixage pour éviter de modifier la méthode mix_sound_data
-                for i in range(mix_buffer_segment.size):
-                    mix_buffer_segment[i] += track_block[i]
-                
-                num_frames_read += frames_to_read
-
-        # Créer un nouvel objet AdikSound avec le son mixé
-        bounced_sound = AdikSound(
-            name="Bounced Audio",
-            audio_data=mix_buffer,
-            sample_rate=self.sample_rate,
-            num_channels=self.num_output_channels
-        )
-
-        # Ajouter une nouvelle piste et lui assigner le son mixé
-        new_track = self.add_track(name="Piste Mixée")
-        new_track.set_audio_sound(bounced_sound, offset_frames=start_frame)
-
-        # Restaurer la position de lecture du player
-        self.set_playback_position(saved_playback_position)
-        
-        print(f"Mixage (bounce) terminé. Le son a été ajouté à la piste '{new_track.name}'.")
-
-    #----------------------------------------
-    '''
-
 
     def select_track(self, track_idx):
         if 0 <= track_idx < len(self.track_list):
