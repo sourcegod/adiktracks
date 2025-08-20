@@ -57,6 +57,8 @@ class AdikPlayer:
         # --- Variables du métronome ---
         self.metronome = AdikMetronome(sample_rate=sample_rate, num_channels=num_output_channels)
         self.metronome.update_tempo()  # Initialiser le tempo au démarrage
+        self._left_locator =0 # In frames
+        self._right_locator =0 # In frames
 
         print(f"AdikPlayer initialisé (SR: {self.sample_rate}, Block Size: {self.block_size}, Out Channels: {self.num_output_channels}, In Channels: {self.num_input_channels})")
     #----------------------------------------
@@ -771,6 +773,43 @@ class AdikPlayer:
         with self._lock:
             self.metronome.toggle_click(False)
             
+    #----------------------------------------
+
+    # --- Gestion des Locateurs ---
+    def get_left_locator(self):
+        """Retourne la position du locateur gauche."""
+        return self._left_locator
+
+    #----------------------------------------
+    
+    def set_left_locator(self, frame_position):
+        """
+        Définit la position du locateur gauche, en s'assurant qu'elle est valide.
+        """
+        # S'assurer que la position est entre 0 et la durée totale
+        validated_frame = max(0, min(frame_position, self.total_duration_frames_cached))
+        
+        # S'assurer que le locateur gauche ne dépasse pas le droit
+        self._left_locator = min(validated_frame, self._right_locator)
+
+    #----------------------------------------
+
+    def get_right_locator(self):
+        """Retourne la position du locateur droit."""
+        return self._right_locator
+
+    #----------------------------------------
+
+    def set_right_locator(self, frame_position):
+        """
+        Définit la position du locateur droit, en s'assurant qu'elle est valide.
+        """
+        # S'assurer que la position est entre 0 et la durée totale
+        validated_frame = max(0, min(frame_position, self.total_duration_frames_cached))
+        
+        # S'assurer que le locateur droit ne dépasse pas le gauche
+        self._right_locator = max(validated_frame, self._left_locator)
+
     #----------------------------------------
 
 
