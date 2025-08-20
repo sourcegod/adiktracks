@@ -201,6 +201,26 @@ class AdikApp(object):
 
     #----------------------------------------
 
+    def select_all_time_to_track(self):
+        """
+        Définit le locateur gauche à 0 et le locateur droit à la fin du projet.
+        Cela sélectionne l'intégralité de la timeline.
+        """
+        self.player.set_left_locator(0)
+        self.player.set_right_locator(self.player.total_duration_frames_cached)
+        self.display_message("Sélection temporelle complète (locateurs de 0 à fin du projet).")
+
+    #----------------------------------------
+        
+    def deselect_all_time_to_track(self):
+        """
+        Définit les deux locateurs à 0, désélectionnant ainsi toute la plage temporelle.
+        """
+        self.player.set_left_locator(0)
+        self.player.set_right_locator(0)
+        self.display_message("Sélection temporelle effacée (locateurs à 0).")
+
+    #----------------------------------------
 
     def delete_audio_from_track(self):
         """ Supprime les données audio de la piste sélectionnée en utilisant les locateurs. """
@@ -266,62 +286,6 @@ class AdikApp(object):
 
     #----------------------------------------
     
-    '''
-    # Parties à effacer
-    def delete_audio_from_track(self, start_frame=0, end_frame=-1):
-        """ Supprime les données audio de la piste sélectionnée. """
-        selected_track_idx = self.player.selected_track_idx
-        if selected_track_idx != -1:
-            if end_frame == -1:
-                end_frame = self.player.get_selected_track().get_audio_sound().length_frames
-            self.player.delete_audio_from_track(selected_track_idx, start_frame, end_frame)
-            self.display_message(f"Audio supprimé de la piste '{self.player.get_selected_track().name}'.")
-        else:
-            self.display_message("Aucune piste sélectionnée pour supprimer l'audio.")
-
-    #----------------------------------------
-
-    def erase_audio_from_track(self, start_frame=0, end_frame=-1):
-        """ Efface les données audio (remplace par du silence) de la piste sélectionnée. """
-        selected_track_idx = self.player.selected_track_idx
-        if selected_track_idx != -1:
-            if end_frame == -1:
-                end_frame = self.player.get_selected_track().get_audio_sound().length_frames
-                
-            self.player.erase_audio_from_track(selected_track_idx, start_frame, end_frame)
-            self.display_message(f"Audio effacé (silence) de la piste '{self.player.get_selected_track().name}'.")
-        else:
-            self.display_message("Aucune piste sélectionnée pour effacer l'audio.")
-
-    #----------------------------------------
-
-    def bounce_to_track(self, start_frame=0, end_frame=-1):
-        """
-        Appelle la fonction de mixage du lecteur avec les paramètres de trame
-        et affiche un message à l'utilisateur.
-        """
-        if len(self.player.track_list) == 0:
-            self.display_message("Il n'y a pas de pistes à mixer.")
-            return
-            
-        self.display_message("Mixage des pistes...")
-        self.player.bounce_to_track(start_frame=start_frame, end_frame=end_frame)
-        self.display_message("Mixage terminé. Une nouvelle piste a été créée.")
-
-    #----------------------------------------
-
-    def save_track(self, start_frame=0, end_frame=-1, filename=None):
-        """ Sauvegarde dans un fichier Wav la piste sélectionnée. """
-        
-        if self.player.save_track(start_frame, end_frame, filename):
-            self.display_message("Fichier Sauvegardé")
-        else:
-            self.display_message("Fichier non Sauvegardé")
-
-    #----------------------------------------
-    '''
-
-
     #----------------------------------------
     # Track Controls (déplacé depuis AdikTUI.key_handler)
     #----------------------------------------

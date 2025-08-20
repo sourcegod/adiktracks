@@ -256,6 +256,11 @@ class AdikTUI(object):
             self._app.go_to_start()
         elif key == ord('>'):
             self._app.go_to_end()
+        elif key == ord(','):
+            self._app.select_all_time_to_track()
+        elif key == ord('?'):
+            self._app.deselect_all_time_to_track()
+         
         elif key == 5:  # Ctrl+E: Mixer toutes les pistes sur une nouvelle piste
             # On passe les trames de début et de fin du projet, mais vous
             # pouvez les modifier pour mixer une sélection spécifique si besoin.
