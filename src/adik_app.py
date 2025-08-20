@@ -367,10 +367,11 @@ class AdikApp(object):
         Si frames_pos est -1, utilise la position de lecture actuelle.
         Si frames_pos est -2, utilise la durée totale du projet.
         """
+        # Fait appel à des fonctions et propriétés pour rester générique
         if frames_pos == -1:
-            target_frame = self.player.current_playback_frame
+            target_frame = self.player.get_position()
         elif frames_pos == -2:
-            target_frame = self.player.total_duration_frames_cached
+            target_frame = self.player.total_duration_frames
         else:
             target_frame = frames_pos
 
@@ -385,10 +386,11 @@ class AdikApp(object):
         Si frames_pos est -1, utilise la position de lecture actuelle.
         Si frames_pos est -2, utilise la durée totale du projet.
         """
+        # Fait appel à des fonctions et propriétés pour rester générique
         if frames_pos == -1:
-            target_frame = self.player.current_playback_frame
+            target_frame = self.player.get_position()
         elif frames_pos == -2:
-            target_frame = self.player.total_duration_frames_cached
+            target_frame = self.player.total_duration_frames
         else:
             target_frame = frames_pos
         
