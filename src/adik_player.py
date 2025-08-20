@@ -690,23 +690,18 @@ class AdikPlayer:
     #----------------------------------------
 
     # --- gestion de la boucle ---
-    def set_loop_points(self, start_time_seconds, end_time_seconds):
+    
+    def set_loop_points(self, start_frame, end_frame):
         """
-        Définit les points de début et de fin de la boucle en secondes.
-        La conversion en frames est gérée automatiquement.
+        Définit les points de début et de fin de la boucle en frames.
         Les points sont automatiquement bornés entre 0 et la durée totale du projet.
         """
         with self._lock:
             self._update_total_duration_cache()
             
-            
             # Utilisation directe de la valeur en frames mise en cache
             total_duration_frames = self.total_duration_frames_cached
 
-            # Conversion des secondes en frames
-            start_frame = int(start_time_seconds * self.sample_rate)
-            end_frame = int(end_time_seconds * self.sample_rate)
-            
             # Bornage automatique des points de bouclage
             if start_frame < 0:
                 start_frame = 0
@@ -728,7 +723,7 @@ class AdikPlayer:
             return True
 
     #----------------------------------------
-
+    
     def toggle_loop(self):
         """Active ou désactive le mode boucle."""
         with self._lock:
@@ -791,7 +786,7 @@ class AdikPlayer:
         validated_frame = max(0, min(frame_position, self.total_duration_frames_cached))
         
         # S'assurer que le locateur gauche ne dépasse pas le droit
-        self._left_locator = min(validated_frame, self._right_locator)
+        self._left_locator = validated_frame # min(validated_frame, self._right_locator)
 
     #----------------------------------------
 
@@ -808,8 +803,7 @@ class AdikPlayer:
         # S'assurer que la position est entre 0 et la durée totale
         validated_frame = max(0, min(frame_position, self.total_duration_frames_cached))
         
-        # S'assurer que le locateur droit ne dépasse pas le gauche
-        self._right_locator = max(validated_frame, self._left_locator)
+        self._right_locator = validated_frame # max(validated_frame, self._left_locator)
 
     #----------------------------------------
 

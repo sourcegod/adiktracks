@@ -131,6 +131,18 @@ class AdikApp(object):
 
     #----------------------------------------
 
+    def set_loop_points(self):
+        """ Définit les points de début et de fin de la boucle en utilisant les locateurs. """
+        if not self._check_locators_for_range(): return
+        
+        start_frame = self.player.get_left_locator()
+        end_frame = self.player.get_right_locator()
+        self.player.set_loop_points(start_frame, end_frame)
+        self.display_message(f"Points de boucle définis de la trame {start_frame} à {end_frame}.")
+
+    #----------------------------------------
+
+
     def go_to_start(self):
         """ Va au début du projet. """
         self.player.goto_start()
@@ -145,14 +157,6 @@ class AdikApp(object):
 
     #----------------------------------------
     
-    def set_loop_points(self):
-        """ Définit les points de début et de fin de la boucle. """
-        # Exemple de valeurs, à adapter pour une saisie utilisateur
-        self.player.set_loop_points(0, 30)
-        self.display_message("Points de boucle définis.")
-
-    #----------------------------------------
-
     def toggle_recording_mode(self):
         """ Bascule le mode d'enregistrement. """
         self.player.toggle_recording_mode()
@@ -197,6 +201,73 @@ class AdikApp(object):
 
     #----------------------------------------
 
+
+    def delete_audio_from_track(self):
+        """ Supprime les données audio de la piste sélectionnée en utilisant les locateurs. """
+        selected_track_idx = self.player.selected_track_idx
+        if selected_track_idx != -1:
+            if not self._check_locators_for_range(): return
+            
+            start_frame = self.player.get_left_locator()
+            end_frame = self.player.get_right_locator()
+            self.player.delete_audio_from_track(selected_track_idx, start_frame, end_frame)
+            self.display_message(f"Audio supprimé de la piste '{self.player.get_selected_track().name}'.")
+        else:
+            self.display_message("Aucune piste sélectionnée pour supprimer l'audio.")
+
+    #----------------------------------------
+
+    def erase_audio_from_track(self):
+        """ Efface les données audio (remplace par du silence) de la piste sélectionnée en utilisant les locateurs. """
+        selected_track_idx = self.player.selected_track_idx
+        if selected_track_idx != -1:
+            if not self._check_locators_for_range(): return
+            
+            start_frame = self.player.get_left_locator()
+            end_frame = self.player.get_right_locator()
+            self.player.erase_audio_from_track(selected_track_idx, start_frame, end_frame)
+            self.display_message(f"Audio effacé (silence) de la piste '{self.player.get_selected_track().name}'.")
+        else:
+            self.display_message("Aucune piste sélectionnée pour effacer l'audio.")
+
+    #----------------------------------------
+
+    def bounce_to_track(self):
+        """
+        Appelle la fonction de mixage du lecteur avec les locateurs comme paramètres de trame
+        et affiche un message à l'utilisateur.
+        """
+        if len(self.player.track_list) == 0:
+            self.display_message("Il n'y a pas de pistes à mixer.")
+            return
+            
+        if not self._check_locators_for_range(): return
+            
+        start_frame = self.player.get_left_locator()
+        end_frame = self.player.get_right_locator()
+        
+        self.display_message("Mixage des pistes...")
+        self.player.bounce_to_track(start_frame=start_frame, end_frame=end_frame)
+        self.display_message("Mixage terminé. Une nouvelle piste a été créée.")
+
+    #----------------------------------------
+
+    def save_track(self):
+        """ Sauvegarde dans un fichier Wav la piste sélectionnée en utilisant les locateurs. """
+        if not self._check_locators_for_range(): return
+            
+        start_frame = self.player.get_left_locator()
+        end_frame = self.player.get_right_locator()
+            
+        if self.player.save_track(start_frame, end_frame):
+            self.display_message("Fichier Sauvegardé")
+        else:
+            self.display_message("Fichier non Sauvegardé")
+
+    #----------------------------------------
+    
+    '''
+    # Parties à effacer
     def delete_audio_from_track(self, start_frame=0, end_frame=-1):
         """ Supprime les données audio de la piste sélectionnée. """
         selected_track_idx = self.player.selected_track_idx
@@ -248,7 +319,8 @@ class AdikApp(object):
             self.display_message("Fichier non Sauvegardé")
 
     #----------------------------------------
- 
+    '''
+
 
     #----------------------------------------
     # Track Controls (déplacé depuis AdikTUI.key_handler)
@@ -359,6 +431,20 @@ class AdikApp(object):
 
     #----------------------------------------
     # Gestion des Locateurs
+    #----------------------------------------
+
+    def _check_locators_for_range(self):
+        """
+        Vérifie si les locateurs définissent une plage valide (gauche < droite).
+        Affiche un message d'erreur et retourne False si la plage est invalide.
+        """
+        start_frame = self.player.get_left_locator()
+        end_frame = self.player.get_right_locator()
+        if start_frame >= end_frame:
+            self.display_message("Erreur: Les locateurs doivent définir une plage valide.")
+            return False
+        return True
+
     #----------------------------------------
 
     def set_left_locator(self, frames_pos=-1):
