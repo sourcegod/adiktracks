@@ -231,21 +231,27 @@ class AdikTUI(object):
             self._app.forward()
         elif key == ord('D'): # d: effacer l'audio de la piste
             self._app.erase_audio_from_track()
+        elif key == ord('i'):
+            self._app.set_left_locator()
 
         elif key == ord('k'):
             self._app.toggle_click()
         elif key == ord('l'):
             self._app.toggle_loop()
-        elif key == ord('r') or key == ord('R'):
+        elif key == ord('o'):
+            self._app.set_right_locator()
+
+        elif key == ord('r'):
             self._app.toggle_record()
         elif key == ord('s'):
             self._app.toggle_solo_track()
-        elif key == ord('v') or key == ord('V'):
+        elif key == ord('v'):
             self._app.stop_playback()
-        elif key == ord('w') or key == ord('W'):
+        elif key == ord('w'):
             self._app.backward()
         elif key == ord('x'):
             self._app.toggle_mute_track()
+
         elif key == ord('<'):
             self._app.go_to_start()
         elif key == ord('>'):

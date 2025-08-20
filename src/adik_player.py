@@ -44,6 +44,7 @@ class AdikPlayer:
         self.recording_mode = AdikTrack.RECORDING_MODE_REPLACE
 
         # total_duration_seconds et current_time_seconds seront gérés comme des propriétés (voir plus bas)
+        self.current_time_seconds_cached = 0.0
         self.total_duration_seconds_cached = 0.0 # Cache pour la durée totale
         self.total_duration_frames_cached = 0
         

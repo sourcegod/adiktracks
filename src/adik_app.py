@@ -357,6 +357,47 @@ class AdikApp(object):
 
     #----------------------------------------
 
+    #----------------------------------------
+    # Gestion des Locateurs
+    #----------------------------------------
+
+    def set_left_locator(self, frames_pos=-1):
+        """
+        Définit la position du locateur gauche du player.
+        Si frames_pos est -1, utilise la position de lecture actuelle.
+        Si frames_pos est -2, utilise la durée totale du projet.
+        """
+        if frames_pos == -1:
+            target_frame = self.player.current_playback_frame
+        elif frames_pos == -2:
+            target_frame = self.player.total_duration_frames_cached
+        else:
+            target_frame = frames_pos
+
+        self.player.set_left_locator(target_frame)
+        self.display_message(f"Locateur gauche défini à la trame {self.player.get_left_locator()}.")
+
+    #----------------------------------------
+
+    def set_right_locator(self, frames_pos=-1):
+        """
+        Définit la position du locateur droit du player.
+        Si frames_pos est -1, utilise la position de lecture actuelle.
+        Si frames_pos est -2, utilise la durée totale du projet.
+        """
+        if frames_pos == -1:
+            target_frame = self.player.current_playback_frame
+        elif frames_pos == -2:
+            target_frame = self.player.total_duration_frames_cached
+        else:
+            target_frame = frames_pos
+        
+        self.player.set_right_locator(target_frame)
+        self.display_message(f"Locateur droit défini à la trame {self.player.get_right_locator()}.")
+
+    #----------------------------------------
+
+    # --- Functions diverses ---
     def load_demo(self):
         """ Charger une nouvelle démonstration """
         sample_rate = 44100
