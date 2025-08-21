@@ -53,9 +53,9 @@ class AdikPlayer:
         self._lock = threading.Lock() # Verrou pour protéger les accès concurrents
 
         self._looping = False
-        self.loop_start_frame = 0
-        self.loop_end_frame = 0
-        self.loop_mode =0 # 0: mode normal pour boucler sur le player entier, 1: Custom: pour boucler d'un poin à un autre
+        self._loop_start_frame = 0
+        self._loop_end_frame = 0
+        self._loop_mode =0 # 0: mode normal pour boucler sur le player entier, 1: Custom: pour boucler d'un poin à un autre
         
         # --- Variables du métronome ---
         self.metronome = AdikMetronome(sample_rate=sample_rate, num_channels=num_output_channels)
@@ -139,10 +139,10 @@ class AdikPlayer:
     def _update_params(self):
         """ mise à jour des paramètres importants du player """
         self._update_total_duration_cache()
-        if self.loop_mode == 0: # mode normal
+        if self._loop_mode == 0: # mode normal
             # update loop params
-            self.loop_start_frame =0
-            self.loop_end_frame = self.total_duration_frames_cached
+            self._loop_start_frame =0
+            self._loop_end_frame = self.total_duration_frames_cached
 
     #----------------------------------------
 
@@ -504,11 +504,11 @@ class AdikPlayer:
                 return False
 
             # Mettre à jour les propriétés
-            self.loop_start_frame = start_frame
-            self.loop_end_frame = end_frame
+            self._loop_start_frame = start_frame
+            self._loop_end_frame = end_frame
             self._looping = True
             
-            print(f"Player: Boucle activée de {self.loop_start_frame} à {self.loop_end_frame} frames.")
+            print(f"Player: Boucle activée de {self._loop_start_frame} à {self._loop_end_frame} frames.")
             return True
 
     #----------------------------------------
@@ -522,8 +522,8 @@ class AdikPlayer:
             else:
                 # Vérifier si les points de bouclage sont valides avant d'activer la boucle
                 self._update_params()
-                print(f"loop_start: {self.loop_start_frame}, loop_end: {self.loop_end_frame}")
-                if self.loop_end_frame > self.loop_start_frame:
+                print(f"loop_start: {self._loop_start_frame}, loop_end: {self._loop_end_frame}")
+                if self._loop_end_frame > self._loop_start_frame:
                     self._looping = True
                     print("Player: Boucle activée.")
                 else:
@@ -682,8 +682,8 @@ class AdikPlayer:
                 self.current_time_seconds_cached = self.current_playback_frame / self.sample_rate
 
                 # Gérer le bouclage
-                if self.is_looping() and self.current_playback_frame >= self.loop_end_frame:
-                    self.current_playback_frame = self.loop_start_frame
+                if self.is_looping() and self.current_playback_frame >= self._loop_end_frame:
+                    self.current_playback_frame = self._loop_start_frame
                     self.metronome.playback_frame = self.current_playback_frame
                     for track in self.track_list:
                         track.playback_position = self.current_playback_frame
@@ -781,8 +781,8 @@ class AdikPlayer:
                 self.current_time_seconds_cached = self.current_playback_frame / self.sample_rate
 
                 # Gérer le bouclage
-                if self.is_looping() and self.current_playback_frame >= self.loop_end_frame:
-                    self.current_playback_frame = self.loop_start_frame
+                if self.is_looping() and self.current_playback_frame >= self._loop_end_frame:
+                    self.current_playback_frame = self._loop_start_frame
                     self.metronome.playback_frame = self.current_playback_frame
                     for track in self.track_list:
                         track.playback_position = self.current_playback_frame
