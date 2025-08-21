@@ -52,7 +52,7 @@ class AdikPlayer:
         
         self._lock = threading.Lock() # Verrou pour protéger les accès concurrents
 
-        self.is_looping = False
+        self._looping = False
         self.loop_start_frame = 0
         self.loop_end_frame = 0
         self.loop_mode =0 # 0: mode normal pour boucler sur le player entier, 1: Custom: pour boucler d'un poin à un autre
@@ -474,7 +474,12 @@ class AdikPlayer:
     #----------------------------------------
 
     # --- gestion de la boucle ---
-    
+    def is_looping(self):
+        """ Retourne l'état de la boucle """
+        return self._looping
+
+    #----------------------------------------
+
     def set_loop_points(self, start_frame, end_frame):
         """
         Définit les points de début et de fin de la boucle en frames.
@@ -501,7 +506,7 @@ class AdikPlayer:
             # Mettre à jour les propriétés
             self.loop_start_frame = start_frame
             self.loop_end_frame = end_frame
-            self.is_looping = True
+            self._looping = True
             
             print(f"Player: Boucle activée de {self.loop_start_frame} à {self.loop_end_frame} frames.")
             return True
@@ -511,15 +516,15 @@ class AdikPlayer:
     def toggle_loop(self):
         """Active ou désactive le mode boucle."""
         with self._lock:
-            if self.is_looping:
-                self.is_looping = False
+            if self._looping:
+                self._looping = False
                 print("Player: Boucle désactivée.")
             else:
                 # Vérifier si les points de bouclage sont valides avant d'activer la boucle
                 self._update_params()
                 print(f"loop_start: {self.loop_start_frame}, loop_end: {self.loop_end_frame}")
                 if self.loop_end_frame > self.loop_start_frame:
-                    self.is_looping = True
+                    self._looping = True
                     print("Player: Boucle activée.")
                 else:
                     print("Erreur: Les points de bouclage ne sont pas valides. Utilisez set_loop_points d'abord.")
@@ -677,7 +682,7 @@ class AdikPlayer:
                 self.current_time_seconds_cached = self.current_playback_frame / self.sample_rate
 
                 # Gérer le bouclage
-                if self.is_looping and self.current_playback_frame >= self.loop_end_frame:
+                if self.is_looping() and self.current_playback_frame >= self.loop_end_frame:
                     self.current_playback_frame = self.loop_start_frame
                     self.metronome.playback_frame = self.current_playback_frame
                     for track in self.track_list:
@@ -685,7 +690,7 @@ class AdikPlayer:
                     print(f"Player: Boucle terminée, repositionnement à {self.current_playback_frame} frames.")
                 
                 # Gérer l'arrêt en fin de lecture si le bouclage n'est pas actif
-                elif not self.is_looping:
+                elif not self.is_looping():
                     all_tracks_finished = True
                     for track in self.track_list:
                         if track.audio_sound:
@@ -776,7 +781,7 @@ class AdikPlayer:
                 self.current_time_seconds_cached = self.current_playback_frame / self.sample_rate
 
                 # Gérer le bouclage
-                if self.is_looping and self.current_playback_frame >= self.loop_end_frame:
+                if self.is_looping() and self.current_playback_frame >= self.loop_end_frame:
                     self.current_playback_frame = self.loop_start_frame
                     self.metronome.playback_frame = self.current_playback_frame
                     for track in self.track_list:
@@ -784,7 +789,7 @@ class AdikPlayer:
                     print(f"Player: Boucle terminée, repositionnement à {self.current_playback_frame} frames.")
                 
                 # Gérer l'arrêt en fin de lecture si le bouclage n'est pas actif
-                elif not self.is_looping:
+                elif not self.is_looping():
                     all_tracks_finished = True
                     for track in self.track_list:
                         if track.audio_sound:
