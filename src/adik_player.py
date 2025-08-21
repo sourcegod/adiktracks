@@ -67,53 +67,27 @@ class AdikPlayer:
     #----------------------------------------
 
     # --- Gestion des Pistes ---
+    # Fonctions déléguées à AdikTrackEdit
     def select_track(self, track_idx):
-        if 0 <= track_idx < len(self.track_list):
-            self.selected_track_idx = track_idx
-            # print(f"Piste sélectionnée: {self.track_list[self.selected_track_idx].name}")
-            return True
-        # print(f"Erreur: Index de piste invalide ({track_idx}) pour la sélection.")
-        return False
+        return self.track_edit.select_track(track_idx)
 
     #----------------------------------------
 
     def get_selected_track(self):
-        if 0 <= self.selected_track_idx < len(self.track_list):
-            return self.track_list[self.selected_track_idx]
-        return None
-        
+        return self.track_edit.get_selected_track()
+
     #----------------------------------------
 
     def add_track(self, name=None):
-        if name is None:
-            name = f"Piste {len(self.track_list) + 1}"
-        track = AdikTrack(name=name, sample_rate=self.sample_rate, num_channels=self.num_output_channels)
-        self.track_list.append(track)
-        self.select_track(len(self.track_list) - 1) # Sélectionne la nouvelle piste par défaut
-        # self._update_total_duration_cache() # Mettre à jour la durée totale
-        # Mettre à jour la durée totale et d'autres paramètres
-        self._update_params()
-        print(f"Piste ajoutée: {track.name}")
-        return track
+        return self.track_edit.add_track(name)
 
     #----------------------------------------
 
     def delete_track(self, track_idx):
-        if 0 <= track_idx < len(self.track_list):
-            deleted_track = self.track_list.pop(track_idx)
-            print(f"Piste supprimée: {deleted_track.name}")
-            if self.selected_track_idx == track_idx:
-                self.selected_track_idx = max(-1, len(self.track_list) - 1) # Plus de piste sélectionnée si c'était celle-là
-            elif self.selected_track_idx > track_idx:
-                self.selected_track_idx -= 1 # Ajuster l'index si une piste avant a été supprimée
-            # self._update_total_duration_cache() # Mettre à jour la durée totale
-            self._update_params()
-            return True
-        print(f"Erreur: Index de piste invalide ({track_idx}) pour la suppression.")
-        return False
-
+        return self.track_edit.delete_track(track_idx)
+        
     #----------------------------------------
-    
+
     def remove_all_tracks(self):
         self.track_edit.remove_all_tracks()
 

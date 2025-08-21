@@ -8,9 +8,9 @@
 
 """
 
-import numpy as np
 import time
 from adik_sound import AdikSound
+from adik_track import AdikTrack
 from adik_wave_handler import AdikWaveHandler
 
 class AdikTrackEdit:
@@ -20,6 +20,60 @@ class AdikTrackEdit:
     """
     def __init__(self, player):
         self.player = player # Référence à l'instance de AdikPlayer
+
+    #----------------------------------------
+
+    def select_track(self, track_idx):
+        """
+        Sélectionne une piste par son index.
+        """
+        if 0 <= track_idx < len(self.player.track_list):
+            self.player.selected_track_idx = track_idx
+            return True
+        return False
+
+    #----------------------------------------
+
+    def get_selected_track(self):
+        """
+        Retourne la piste actuellement sélectionnée.
+        """
+        if 0 <= self.player.selected_track_idx < len(self.player.track_list):
+            return self.player.track_list[self.player.selected_track_idx]
+        return None
+        
+    #----------------------------------------
+
+    def add_track(self, name=None):
+        """
+        Ajoute une nouvelle piste.
+        """
+        if name is None:
+            name = f"Piste {len(self.player.track_list) + 1}"
+        track = AdikTrack(name=name, sample_rate=self.player.sample_rate, num_channels=self.player.num_output_channels)
+        self.player.track_list.append(track)
+        self.select_track(len(self.player.track_list) - 1)
+        self.player._update_params()
+        print(f"Piste ajoutée: {track.name}")
+        return track
+
+    #----------------------------------------
+
+    def delete_track(self, track_idx):
+        """
+        Supprime une piste par son index.
+        """
+        if 0 <= track_idx < len(self.player.track_list):
+            deleted_track = self.player.track_list.pop(track_idx)
+            print(f"Piste supprimée: {deleted_track.name}")
+            if self.player.selected_track_idx == track_idx:
+                self.player.selected_track_idx = max(-1, len(self.player.track_list) - 1)
+            elif self.player.selected_track_idx > track_idx:
+                self.player.selected_track_idx -= 1
+            self.player._update_params()
+            return True
+        print(f"Erreur: Index de piste invalide ({track_idx}) pour la suppression.")
+        return False
 
     #----------------------------------------
 
@@ -262,8 +316,11 @@ class AdikTrackEdit:
             return False
 
     #----------------------------------------
+
 #========================================
 
 if __name__ == "__main__":
     app = AdikTrackEdit(None)
     input("It's Ok...")
+
+#----------------------------------------
