@@ -11,6 +11,7 @@ from adik_wave_handler import AdikWaveHandler # Pour charger/sauvegarder sons
 from adik_audio_engine import AdikAudioEngine 
 from adik_metronome import AdikMetronome
 from adik_track_edit import AdikTrackEdit # Import de la nouvelle classe
+from adik_loop import AdikLoop # Import de la nouvelle classe
 
 def beep():
     print("\a")
@@ -36,6 +37,8 @@ class AdikPlayer:
         self.track_list = [] # Liste des objets AdikTrack
         self.selected_track_idx = -1 # Index de la piste sélectionnée
         self.track_edit = AdikTrackEdit(self) # Instanciation de la classe d'édition
+        self.loop_manager = AdikLoop(self)
+
         self.current_playback_frame = 0 # Position globale du player en frames
         self._playing = False
         self._recording = False # Retirer le commentaire pour que l'enregistrement soit fonctionnel
@@ -52,11 +55,6 @@ class AdikPlayer:
         
         self._lock = threading.Lock() # Verrou pour protéger les accès concurrents
 
-        self._looping = False
-        self._loop_start_frame = 0
-        self._loop_end_frame = 0
-        self._loop_mode =0 # 0: mode normal pour boucler sur le player entier, 1: Custom: pour boucler d'un poin à un autre
-        
         # --- Variables du métronome ---
         self.metronome = AdikMetronome(sample_rate=sample_rate, num_channels=num_output_channels)
         self.metronome.update_tempo()  # Initialiser le tempo au démarrage
@@ -135,17 +133,17 @@ class AdikPlayer:
         self.total_duration_seconds_cached = max_duration_frames / self.sample_rate
 
     #----------------------------------------
-    
+
     def _update_params(self):
-        """ mise à jour des paramètres importants du player """
+        """
+        Met à jour les paramètres importants du player.
+        La gestion de la boucle a été déplacée vers AdikLoop.
+        """
         self._update_total_duration_cache()
-        if self._loop_mode == 0: # mode normal
-            # update loop params
-            self._loop_start_frame =0
-            self._loop_end_frame = self.total_duration_frames_cached
+        self.loop_manager.update_params()
 
     #----------------------------------------
-
+    
     # --- Transport (Play/Pause/Stop) ---
     def is_playing(self):
         return self._playing
@@ -474,61 +472,20 @@ class AdikPlayer:
     #----------------------------------------
 
     # --- gestion de la boucle ---
+    # Fonctions déléguées à AdikLoop
     def is_looping(self):
-        """ Retourne l'état de la boucle """
-        return self._looping
-
+        return self.loop_manager.is_looping()
+        
     #----------------------------------------
 
     def set_loop_points(self, start_frame, end_frame):
-        """
-        Définit les points de début et de fin de la boucle en frames.
-        Les points sont automatiquement bornés entre 0 et la durée totale du projet.
-        """
-        with self._lock:
-            self._update_total_duration_cache()
-            
-            # Utilisation directe de la valeur en frames mise en cache
-            total_duration_frames = self.total_duration_frames_cached
-
-            # Bornage automatique des points de bouclage
-            if start_frame < 0:
-                start_frame = 0
-            
-            if end_frame > total_duration_frames:
-                end_frame = total_duration_frames
-
-            # Validation des points de bouclage
-            if end_frame <= start_frame:
-                print("Erreur: Le point de fin de la boucle doit être supérieur au point de début.")
-                return False
-
-            # Mettre à jour les propriétés
-            self._loop_start_frame = start_frame
-            self._loop_end_frame = end_frame
-            self._looping = True
-            
-            print(f"Player: Boucle activée de {self._loop_start_frame} à {self._loop_end_frame} frames.")
-            return True
-
+        return self.loop_manager.set_loop_points(start_frame, end_frame)
+        
     #----------------------------------------
-    
-    def toggle_loop(self):
-        """Active ou désactive le mode boucle."""
-        with self._lock:
-            if self._looping:
-                self._looping = False
-                print("Player: Boucle désactivée.")
-            else:
-                # Vérifier si les points de bouclage sont valides avant d'activer la boucle
-                self._update_params()
-                print(f"loop_start: {self._loop_start_frame}, loop_end: {self._loop_end_frame}")
-                if self._loop_end_frame > self._loop_start_frame:
-                    self._looping = True
-                    print("Player: Boucle activée.")
-                else:
-                    print("Erreur: Les points de bouclage ne sont pas valides. Utilisez set_loop_points d'abord.")
 
+    def toggle_loop(self):
+        return self.loop_manager.toggle_loop()
+        
     #----------------------------------------
 
 
@@ -682,15 +639,15 @@ class AdikPlayer:
                 self.current_time_seconds_cached = self.current_playback_frame / self.sample_rate
 
                 # Gérer le bouclage
-                if self.is_looping() and self.current_playback_frame >= self._loop_end_frame:
-                    self.current_playback_frame = self._loop_start_frame
+                if self.loop_manager.is_looping() and self.current_playback_frame >= self.loop_manager._loop_end_frame:
+                    self.current_playback_frame = self.loop_manager._loop_start_frame
                     self.metronome.playback_frame = self.current_playback_frame
                     for track in self.track_list:
                         track.playback_position = self.current_playback_frame
                     print(f"Player: Boucle terminée, repositionnement à {self.current_playback_frame} frames.")
                 
                 # Gérer l'arrêt en fin de lecture si le bouclage n'est pas actif
-                elif not self.is_looping():
+                elif not self.loop_manager.is_looping():
                     all_tracks_finished = True
                     for track in self.track_list:
                         if track.audio_sound:

@@ -21,6 +21,20 @@ class AdikLoop:
         self._loop_mode = 0  # 0: mode normal, 1: mode personnalisé
         self._lock = threading.Lock()
 
+    def update_params(self):
+        """
+        Met à jour les paramètres de la boucle en fonction de son mode.
+        """
+        if self._loop_mode == 0:  # mode normal
+            with self._lock:
+                self.player._update_total_duration_cache()
+                self._loop_start_frame = 0
+                self._loop_end_frame = self.player.total_duration_frames_cached
+                print("Boucle mise à jour sur la durée totale du projet.")
+
+    #----------------------------------------
+
+
     def is_looping(self):
         """
         Retourne l'état de la boucle.
