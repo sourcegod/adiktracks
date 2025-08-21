@@ -449,6 +449,43 @@ class AdikApp(object):
 
     #----------------------------------------
 
+    def set_left_locator_from_start(self):
+        """
+        Définit le locateur gauche à la trame 0.
+        """
+        self.player.set_left_locator(0)
+        self.display_message("Locateur gauche défini au début du projet (trame 0).")
+
+    #----------------------------------------
+
+    def set_right_locator_to_end(self):
+        """
+        Définit le locateur droit à la fin du projet.
+        """
+        self.player.set_right_locator(self.player.total_duration_frames_cached)
+        self.display_message(f"Locateur droit défini à la fin du projet (trame {self.player.total_duration_frames_cached}).")
+
+    #----------------------------------------
+
+    def goto_left_locator(self):
+        """
+        Déplace la position de lecture du player au locateur gauche.
+        """
+        self.player.set_position(self.player.get_left_locator())
+        self.display_message(f"Déplacé au locateur gauche (trame {self.player.get_left_locator()}).")
+
+    #----------------------------------------
+
+    def goto_right_locator(self):
+        """
+        Déplace la position de lecture du player au locateur droit.
+        """
+        self.player.set_position(self.player.get_right_locator())
+        self.display_message(f"Déplacé au locateur droit (trame {self.player.get_right_locator()}).")
+
+    #----------------------------------------
+
+
     # --- Functions diverses ---
     def load_demo(self):
         """ Charger une nouvelle démonstration """

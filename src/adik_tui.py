@@ -233,6 +233,8 @@ class AdikTUI(object):
             self._app.erase_audio_from_track()
         elif key == ord('i'):
             self._app.set_left_locator()
+        elif key == ord('I'):
+            self._app.set_left_locator_from_start()
 
         elif key == ord('k'):
             self._app.toggle_click()
@@ -240,6 +242,9 @@ class AdikTUI(object):
             self._app.toggle_loop()
         elif key == ord('o'):
             self._app.set_right_locator()
+        elif key == ord('O'):
+            self._app.set_right_locator_to_end()
+
 
         elif key == ord('r'):
             self._app.toggle_record()
@@ -261,6 +266,9 @@ class AdikTUI(object):
         elif key == ord('?'):
             self._app.deselect_all_time_to_track()
          
+        elif key == 4:  # Ctrl+D: supprimer l'audio de la piste
+            self._app.delete_audio_from_track()
+
         elif key == 5:  # Ctrl+E: Mixer toutes les pistes sur une nouvelle piste
             # On passe les trames de début et de fin du projet, mais vous
             # pouvez les modifier pour mixer une sélection spécifique si besoin.
@@ -268,10 +276,7 @@ class AdikTUI(object):
             end_frame = self._app.player.total_duration_frames_cached
             self._app.bounce_to_track(start_frame, end_frame=-1)
             curses.beep()
-            
-        elif key == 4:  # Ctrl+D: supprimer l'audio de la piste
-            self._app.delete_audio_from_track()
-
+ 
         elif key == 12:  # Ctrl+L
             self._app.set_loop_points()
         elif key == 16:  # Ctrl+P
@@ -297,6 +302,10 @@ class AdikTUI(object):
             self._app.select_next_track()
         elif key == curses.KEY_DC:
             self._app.delete_selected_track()
+        elif key == curses.KEY_HOME:
+            self._app.goto_left_locator()
+        elif key == curses.KEY_END:
+            self._app.goto_right_locator()
         else:
             self._app.display_message(f"Touche '{chr(key)}' ({key}) non reconnue.")
             curses.beep()
