@@ -1,50 +1,58 @@
 # adik_audio_engine.py
-import sounddevice as sd
-import numpy as np
-import threading # Si nécessaire, mais sounddevice gère déjà son thread
+"""
+    File: adik_audio_engine.py
+    Audio Sound Card Driver manager
+    Date: Fri, 22/08/2025
+    Author: Coolbrother
+
+"""
+
+from sounddevice_audio_driver import SoundDeviceAudioDriver
 
 class AdikAudioEngine:
+    """
+    Moteur audio de l'application. Cette classe agit comme une façade,
+    masquant les détails d'implémentation de l'API audio (comme sounddevice).
+    Elle utilise un "pilote" pour communiquer avec le matériel audio.
+    """
     def __init__(self, sample_rate=44100, block_size=1024, num_output_channels=2, num_input_channels=1):
         self.sample_rate = sample_rate
         self.block_size = block_size
         self.num_output_channels = num_output_channels
-        self.num_input_channels = num_input_channels # NOUVEAU: Nombre de canaux d'entrée
+        self.num_input_channels = num_input_channels
 
-        self.stream = None
-        self._callback_function = None # Le callback que l'engine appellera
-        self.stream_in = None
+        # L'instance du pilote audio, qui est responsable de la communication
+        # avec le matériel (ici, sounddevice)
+        self._audio_driver = SoundDeviceAudioDriver(
+            sample_rate,
+            block_size,
+            num_output_channels,
+            num_input_channels
+        )
+
+        # Les callbacks fournis par le player pour la lecture et l'enregistrement
+        self._output_callback_function = None
         self._input_callback_function = None
+        
+        # Statut du moteur
+        self._is_running_output = False
+        self._is_running_input = False
 
-        try:
-            sd.check_output_settings(samplerate=self.sample_rate, channels=self.num_output_channels)
-            sd.check_input_settings(samplerate=self.sample_rate, channels=self.num_input_channels)
-            print(f"Engine: Périphériques audio par défaut: Entrée='{sd.query_devices(kind='input')['name']}', Sortie='{sd.query_devices(kind='output')['name']}'")
-        except sd.PortAudioError as e:
-            print(f"Engine: Avertissement: Problème avec les périphériques audio par défaut: {e}")
-            print("Veuillez vérifier vos périphériques audio et leurs paramètres.")
-
-        # print(f"AdikAudioEngine initialisé (SR: {self.sample_rate}, Block Size: {self.block_size}, Out Channels: {self.num_output_channels})")
+        print(f"AdikAudioEngine initialisé (SR: {self.sample_rate}, Block Size: {self.block_size}, Out Channels: {self.num_output_channels})")
 
     #----------------------------------------
-
-    def set_callback(self, callback_func):
-        """
-        Deprecated function
-        Définit la fonction de rappel qui sera appelée par le stream audio.
-        Cette fonction recevra (outdata, frames, time_info, status).
-        """
+    
+    def set_output_callback(self, callback_func):
+        """Définit le callback pour la lecture."""
         if callable(callback_func):
-            self._callback_function = callback_func
+            self._output_callback_function = callback_func
         else:
             raise ValueError("Le callback fourni n'est pas une fonction callable.")
 
     #----------------------------------------
 
     def set_input_callback(self, callback_func):
-        """
-        Définit la fonction de rappel qui sera appelée par le stream audio en enregistrement seul.
-        Cette fonction recevra (indata, frames, time_info, status).
-        """
+        """Définit le callback pour l'enregistrement."""
         if callable(callback_func):
             self._input_callback_function = callback_func
         else:
@@ -52,145 +60,95 @@ class AdikAudioEngine:
 
     #----------------------------------------
 
-    def set_output_callback(self, callback_func):
-        """
-        Définit la fonction de rappel qui sera appelée par le stream audio en lecture seule.
-        Cette fonction recevra (outdata, frames, time_info, status).
-        """
-        if callable(callback_func):
-            self._callback_function = callback_func
-        else:
-            raise ValueError("Le callback fourni n'est pas une fonction callable.")
-
-    #----------------------------------------
-
-
-    def start_duplex_stream(self):
-        """Démarre le stream audio (maintenant avec support d'entrée/sortie)."""
-        if self.stream and self.stream.active:
-            print("Engine: Stream audio déjà actif.")
-            return
-
-        if self._callback_function is None:
-            print("Engine: Aucun callback défini. Impossible de démarrer le stream.")
-            return
-
-        try:
-            # MODIFICATION ICI: Utilisation de sd.Stream pour l'entrée et la sortie
-            self.stream = sd.Stream(
-                samplerate=self.sample_rate,
-                blocksize=self.block_size,
-                channels=[self.num_input_channels, self.num_output_channels], # [canaux_entrée, canaux_sortie]
-                dtype='float32',
-                callback=self._callback_function,
-                # NOUVEAU: Paramètres pour l'entrée
-                # device=None # Utilise les périphériques par défaut
-            )
-            self.stream.start()
-            print("Engine: Stream audio démarré (lecture et enregistrement).")
-        except Exception as e:
-            print(f"Engine: Erreur lors du démarrage du stream audio: {e}.")
-            self.stream = None
-
-  
-    #----------------------------------------
-    
-    def stop_duplex_stream(self):
-        """Arrête et ferme le stream audio."""
-        if self.stream:
-            self.stream.close() # close() arrête et nettoie
-            self.stream = None
-            print("Engine: Stream audio arrêté.")
-    #----------------------------------------
-
-
     def start_output_stream(self):
-        """ Démarre le stream audio en lecture seule. """
-        if self.stream and self.stream.active:
-            print("Engine: Stream audio déjà actif.")
+        """Démarre le stream de sortie via le pilote."""
+        if self._output_callback_function is None:
+            print("Engine: Aucun callback de sortie défini. Impossible de démarrer le stream.")
             return
 
-        if self._callback_function is None:
-            print("Engine: Aucun callback défini. Impossible de démarrer le stream.")
-            return
+        self._audio_driver.start_output_stream(self._output_callback_function)
+        self._is_running_output = True
+        print("Engine: Stream de sortie démarré.")
 
-        try:
-            self.stream = sd.OutputStream(
-                samplerate=self.sample_rate,
-                blocksize=self.block_size,
-                channels=self.num_output_channels,
-                dtype='float32',
-                callback=self._callback_function # Utilise le callback fourni
-            )
-            self.stream.start()
-            print("Engine: Stream audio démarré.")
-        except Exception as e:
-            print(f"Engine: Erreur lors du démarrage du stream audio: {e}.")
-            self.stream = None
     #----------------------------------------
 
     def stop_output_stream(self):
-        """Arrête et ferme le stream audio."""
-        if self.stream:
-            self.stream.close() # close() arrête et nettoie
-            self.stream = None
-            print("Engine: Stream audio arrêté.")
-    
-#----------------------------------------
+        """Arrête le stream de sortie via le pilote."""
+        self._audio_driver.stop_output_stream()
+        self._is_running_output = False
+        print("Engine: Stream de sortie arrêté.")
+
+    #----------------------------------------
 
     def start_input_stream(self):
-        """ Démarre le stream audio en enregistrement seulement. """
-        if self.stream_in and self.stream_in.active:
-            print("Engine: Stream d'entrée déjà actif.")
-            return
-
+        """Démarre le stream d'entrée via le pilote."""
         if self._input_callback_function is None:
             print("Engine: Aucun callback d'entrée défini. Impossible de démarrer le stream.")
             return
 
-        try:
-            self.stream_in = sd.InputStream(
-                samplerate=self.sample_rate,
-                blocksize=self.block_size,
-                channels=self.num_input_channels,
-                dtype='float32',
-                callback=self._input_callback_function
-            )
-            self.stream_in.start()
-            print("Engine: Stream d'entrée démarré.")
-        except Exception as e:
-            print(f"Engine: Erreur lors du démarrage du stream d'entrée: {e}.")
-            self.stream_in = None
+        self._audio_driver.start_input_stream(self._input_callback_function)
+        self._is_running_input = True
+        print("Engine: Stream d'entrée démarré.")
 
     #----------------------------------------
 
     def stop_input_stream(self):
-        """Arrête et ferme le stream audio d'entrée."""
-        if self.stream_in:
-            self.stream_in.close()
-            self.stream_in = None
-            print("Engine: Stream d'entrée arrêté.")
+        """Arrête le stream d'entrée via le pilote."""
+        self._audio_driver.stop_input_stream()
+        self._is_running_input = False
+        print("Engine: Stream d'entrée arrêté.")
 
     #----------------------------------------
 
-    def stop_stream(self):
-        """Arrête et ferme tous les stream audio."""
-        self.stop_input_stream()
-        self.stop_output_stream()
-        print("Engine: tous les Streams audio sont arrêtés.")
-   
-#----------------------------------------
+    def start_duplex_stream(self):
+        """Démarre un stream duplex (entrée et sortie) via le pilote."""
+        if self._output_callback_function is None or self._input_callback_function is None:
+            print("Engine: Les deux callbacks (entrée et sortie) doivent être définis pour un stream duplex.")
+            return
+        
+        # Le pilote SoundDeviceAudioDriver gère un seul stream pour le duplex
+        self._audio_driver.start_duplex_stream(self._output_callback_function, self._input_callback_function)
+        self._is_running_output = True
+        self._is_running_input = True
+        print("Engine: Stream duplex démarré.")
+        
+    #----------------------------------------
+    
+    def stop_duplex_stream(self):
+        """Arrête le stream duplex via le pilote."""
+        self._audio_driver.stop_duplex_stream()
+        self._is_running_output = False
+        self._is_running_input = False
+        print("Engine: Stream duplex arrêté.")
 
+    #----------------------------------------
 
     def is_running(self):
-        """Retourne True si le stream audio est actif."""
-        return self.stream is not None and self.stream.active
+        """Vérifie si un stream de sortie est actif."""
+        return self._is_running_output
 
     #----------------------------------------
     
     def is_input_running(self):
-        """Retourne True si le stream audio en enregistrement seul est actif."""
-        return self.stream_in is not None and self.stream_in.active
+        """Vérifie si un stream d'entrée est actif."""
+        return self._is_running_input
 
     #----------------------------------------
 
+    def stop_stream(self):
+        """Arrête tous les streams actifs."""
+        self.stop_output_stream()
+        self.stop_input_stream()
+        print("Engine: Tous les streams audio sont arrêtés.")
+
+    #----------------------------------------
+#========================================
+
+if __name__ == "__main__":
+    # For testing
+    app = AdikAudioEngine()
+    # app.init_player()
+
+    input("It's OK...")
+    
+#----------------------------------------
