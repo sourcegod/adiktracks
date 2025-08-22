@@ -28,8 +28,6 @@ class AdikPlayer:
 
         # Instanciez l'Engine et définissez son callback
         self.audio_engine = AdikAudioEngine(sample_rate, block_size, num_output_channels, num_input_channels)
-        self._audio_callback = self._audio_output_callback
-        # self.audio_engine.set_callback(self._audio_callback) # Le callback du player devient le callback de l'engine
         self.audio_engine.set_output_callback(self._audio_output_callback)
         self.audio_engine.set_input_callback(self._audio_input_callback)
 

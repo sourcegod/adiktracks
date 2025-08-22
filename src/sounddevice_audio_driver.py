@@ -32,9 +32,12 @@ class SoundDeviceAudioDriver:
             print("Pilote SoundDevice: Stream de sortie déjà actif.")
             return
 
+        
+        """
         if self._stream_in and self._stream_in.active:
             print("Pilote SoundDevice: Un stream d'entrée est déjà actif. Le stream de sortie ne peut pas être démarré.")
             return
+        """
 
         try:
             self._stream_out = sd.OutputStream(
@@ -65,9 +68,11 @@ class SoundDeviceAudioDriver:
             print("Pilote SoundDevice: Stream d'entrée déjà actif.")
             return
 
+        """
         if self._stream_out and self._stream_out.active:
             print("Pilote SoundDevice: Un stream de sortie est déjà actif. Le stream d'entrée ne peut pas être démarré.")
             return
+        """
 
         try:
             self._stream_in = sd.InputStream(
