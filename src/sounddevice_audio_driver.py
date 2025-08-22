@@ -14,6 +14,7 @@ class SoundDeviceAudioDriver:
         self.num_input_channels = num_input_channels
         self._stream_out = None
         self._stream_in = None
+        self._stream_duplex = None
         
         # Vérification des périphériques audio par défaut au démarrage
         try:
@@ -31,13 +32,6 @@ class SoundDeviceAudioDriver:
         if self._stream_out and self._stream_out.active:
             print("Pilote SoundDevice: Stream de sortie déjà actif.")
             return
-
-        
-        """
-        if self._stream_in and self._stream_in.active:
-            print("Pilote SoundDevice: Un stream d'entrée est déjà actif. Le stream de sortie ne peut pas être démarré.")
-            return
-        """
 
         try:
             self._stream_out = sd.OutputStream(
@@ -68,12 +62,6 @@ class SoundDeviceAudioDriver:
             print("Pilote SoundDevice: Stream d'entrée déjà actif.")
             return
 
-        """
-        if self._stream_out and self._stream_out.active:
-            print("Pilote SoundDevice: Un stream de sortie est déjà actif. Le stream d'entrée ne peut pas être démarré.")
-            return
-        """
-
         try:
             self._stream_in = sd.InputStream(
                 samplerate=self.sample_rate,
@@ -97,29 +85,36 @@ class SoundDeviceAudioDriver:
 
     #----------------------------------------
     
-    def start_duplex_stream(self, output_callback, input_callback):
-        """Démarre un stream duplex sounddevice."""
-        if (self._stream_out and self._stream_out.active) or (self._stream_in and self._stream_in.active):
+    def start_duplex_stream(self, callback_func):
+        """
+        Démarre un stream duplex sounddevice.
+        """
+        if (self._stream_duplex and self._stream_duplex.active) or (self._stream_out and self._stream_out.active) or (self._stream_in and self._stream_in.active):
             print("Pilote SoundDevice: Un stream est déjà actif. Impossible de démarrer un stream duplex.")
             return
-        
-        # NOTE: sounddevice.Stream est capable de gérer le duplex
-        # Nous allons créer un seul stream pour l'entrée et la sortie.
-        # Pour cela, il nous faut un seul callback qui gère les deux.
-        # C'est la raison pour laquelle cette méthode est un peu plus complexe.
-        # Pour le moment, nous allons simplement utiliser un stream de sortie
-        # ou d'entrée, mais pas les deux en même temps.
 
-        # Correction: Un stream duplex est possible si le callback est unique
-        # gérant les données d'entrée ET de sortie.
-        print("Pilote SoundDevice: Démarrage d'un stream duplex non pris en charge pour le moment.")
-        print("Veuillez utiliser un stream de sortie ou d'entrée séparé.")
+
+        try:
+            self._stream_duplex = sd.Stream(
+                samplerate=self.sample_rate,
+                blocksize=self.block_size,
+                channels=[self.num_input_channels, self.num_output_channels],
+                dtype='float32',
+                callback=callback_func
+            )
+            self._stream_duplex.start()
+        except Exception as e:
+            print(f"Pilote SoundDevice: Erreur lors du démarrage du stream duplex: {e}.")
+            self._stream_duplex = None
 
     #----------------------------------------
-    
+
     def stop_duplex_stream(self):
-        """Arrête le stream duplex (non implémenté)."""
-        print("Pilote SoundDevice: Arrêt d'un stream duplex non pris en charge pour le moment.")
+        """Arrête le stream duplex."""
+        if self._stream_duplex:
+            self._stream_duplex.close()
+            self._stream_duplex = None
+            print("Pilote SoundDevice: Stream duplex arrêté.")
 
     #----------------------------------------
 

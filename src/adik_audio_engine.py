@@ -33,6 +33,7 @@ class AdikAudioEngine:
         # Les callbacks fournis par le player pour la lecture et l'enregistrement
         self._output_callback_function = None
         self._input_callback_function = None
+        self._duplex_callback_function = None
         
         # Statut du moteur
         self._is_running_output = False
@@ -59,6 +60,15 @@ class AdikAudioEngine:
             raise ValueError("Le callback fourni n'est pas une fonction callable.")
 
     #----------------------------------------
+    def set_duplex_callback(self, callback_func):
+        """Définit le callback pour le duplex (la lecture et l'enregistrement) """
+        if callable(callback_func):
+            self._duplex_callback_function = callback_func
+        else:
+            raise ValueError("Le callback fourni n'est pas une fonction callable.")
+
+    #----------------------------------------
+
 
     def start_output_stream(self):
         """Démarre le stream de sortie via le pilote."""
@@ -102,14 +112,13 @@ class AdikAudioEngine:
 
     def start_duplex_stream(self):
         """Démarre un stream duplex (entrée et sortie) via le pilote."""
-        if self._output_callback_function is None or self._input_callback_function is None:
-            print("Engine: Les deux callbacks (entrée et sortie) doivent être définis pour un stream duplex.")
+        if self._duplex_callback_function is None: 
+            print("Engine: Le callback (Duplex) doit être défini pour un stream duplex.")
             return
-        
+         
         # Le pilote SoundDeviceAudioDriver gère un seul stream pour le duplex
-        self._audio_driver.start_duplex_stream(self._output_callback_function, self._input_callback_function)
+        self._audio_driver.start_duplex_stream(self._duplex_callback_function)
         self._is_running_output = True
-        self._is_running_input = True
         print("Engine: Stream duplex démarré.")
         
     #----------------------------------------
@@ -118,7 +127,6 @@ class AdikAudioEngine:
         """Arrête le stream duplex via le pilote."""
         self._audio_driver.stop_duplex_stream()
         self._is_running_output = False
-        self._is_running_input = False
         print("Engine: Stream duplex arrêté.")
 
     #----------------------------------------
