@@ -150,7 +150,6 @@ class AdikPlayer:
     #----------------------------------------
     
     # --- Transport (Play/Pause/Stop) ---
-    # --- Fonctions de positionnement ---
     # Fonctions déléguées à AdikTransport
     def is_playing(self):
         return self.transport.is_playing()
@@ -202,7 +201,7 @@ class AdikPlayer:
 
     #----------------------------------------
 
-    # --- Gestion du positionnement ---
+    # --- Fonctions de positionnement ---
     def _get_max_frames(self):
         """
         Calcule et retourne la durée maximale en frames parmi toutes les pistes chargées.
@@ -312,6 +311,7 @@ class AdikPlayer:
 
 
     # --- Gestion du métronome ---
+    # Fonctions déléguées à AdikMetronome
     def set_bpm(self, bpm):
         """Définit le tempo en BPM et met à jour les frames_per_beat."""
         with self._lock:
