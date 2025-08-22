@@ -348,6 +348,20 @@ class AdikApp(object):
             self.display_message("Aucune piste sélectionnée.")
 
     #----------------------------------------
+
+    def increase_bpm(self):
+        """ Augmente le BPM du métronome. """
+        self.player.increase_bpm()
+        self.display_message(f"BPM : {self.player.get_bpm()}")
+
+    #----------------------------------------
+        
+    def decrease_bpm(self):
+        """ Diminue le BPM du métronome. """
+        self.player.decrease_bpm()
+        self.display_message(f"BPM : {self.player.get_bpm()}")
+
+    #----------------------------------------
  
     def pan_left(self):
         """ Panoramique vers la gauche pour la piste sélectionnée. """

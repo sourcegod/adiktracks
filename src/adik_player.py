@@ -495,7 +495,7 @@ class AdikPlayer:
         with self._lock:
             if bpm > 0:
                 self.metronome.tempo_bpm = bpm
-                self.update_tempo()
+                self.metronome.update_tempo()
             else:
                 print("Erreur: Le BPM doit être une valeur positive.")
 
@@ -504,6 +504,32 @@ class AdikPlayer:
     def get_bpm(self):
         """Retourne le tempo actuel en BPM."""
         return self.metronome.tempo_bpm
+
+    #----------------------------------------
+
+    def increase_bpm(self, step=1):
+        """
+        Augmente le tempo en BPM.
+        """
+        # La fonction set_bpm  du metronome est déjà sous verrou
+        new_bpm = self.metronome.tempo_bpm + step
+        if new_bpm >= 800:
+            new_bpm = 800
+        self.set_bpm(new_bpm)
+        print(f"BPM augmenté à {self.metronome.tempo_bpm}")
+
+    #----------------------------------------
+
+    def decrease_bpm(self, step=1):
+        """
+        Diminue le tempo en BPM. La valeur ne peut pas être inférieure à 1.
+        """
+        # La fonction set_bpm  du metronome est déjà sous verrou
+        new_bpm = self.metronome.tempo_bpm - step
+        if new_bpm < 1:
+            new_bpm = 1
+        self.set_bpm(new_bpm)
+        print(f"BPM diminué à {self.metronome.tempo_bpm}")
 
     #----------------------------------------
 

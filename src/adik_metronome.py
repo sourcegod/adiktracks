@@ -28,7 +28,7 @@ class AdikMetronome:
     def update_tempo(self, bpm=None):
         """Met à jour le tempo du métronome."""
         if bpm is not None:
-            if bpm > 0:
+            if bpm > 0 or bpm <= 800:
                 self.tempo_bpm = bpm
         
         frames_per_second = self.sample_rate

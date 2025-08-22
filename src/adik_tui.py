@@ -287,10 +287,16 @@ class AdikTUI(object):
             self._app.increase_volume()
         elif key == ord('-') or key == ord('_'):
             self._app.decrease_volume()
-        elif key == ord('[') or key == ord('{'):
+        elif key == ord('('):
+            self._app.increase_bpm()
+        elif key == ord(')'):
+            self._app.decrease_bpm()
+
+        elif key == ord('['):
             self._app.pan_left()
-        elif key == ord(']') or key == ord('}'):
+        elif key == ord(']'):
             self._app.pan_right()
+
         elif key == curses.KEY_UP:
             self._app.select_previous_track()
         elif key == curses.KEY_DOWN:
