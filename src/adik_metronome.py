@@ -7,7 +7,7 @@ class AdikMetronome:
     def __init__(self, sample_rate, num_channels):
         self.sample_rate = sample_rate
         self.num_channels = num_channels
-        self.tempo_bpm = 120.0
+        self.tempo_bpm = 100.0
         self.frames_per_beat = 0
         self.beat_count = 0
         self._clicking = False

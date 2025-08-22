@@ -270,12 +270,7 @@ class AdikTUI(object):
             self._app.delete_audio_from_track()
 
         elif key == 5:  # Ctrl+E: Mixer toutes les pistes sur une nouvelle piste
-            # On passe les trames de début et de fin du projet, mais vous
-            # pouvez les modifier pour mixer une sélection spécifique si besoin.
-            start_frame = 0
-            end_frame = self._app.player.total_duration_frames_cached
-            self._app.bounce_to_track(start_frame, end_frame=-1)
-            curses.beep()
+            self._app.bounce_to_track()
  
         elif key == 12:  # Ctrl+L
             self._app.set_loop_points()

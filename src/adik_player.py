@@ -112,7 +112,7 @@ class AdikPlayer:
     #----------------------------------------
         
     def save_track(self, start_frame=0, end_frame=-1, filename=None):
-        self.track_edit.save_track(start_frame, end_frame, filename)
+        return self.track_edit.save_track(start_frame, end_frame, filename)
 
     #----------------------------------------
 
