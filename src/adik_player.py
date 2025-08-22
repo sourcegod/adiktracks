@@ -12,6 +12,7 @@ from adik_audio_engine import AdikAudioEngine
 from adik_metronome import AdikMetronome
 from adik_track_edit import AdikTrackEdit # Import de la nouvelle classe
 from adik_loop import AdikLoop # Import de la nouvelle classe
+from adik_transport import AdikTransport
 
 def beep():
     print("\a")
@@ -38,8 +39,10 @@ class AdikPlayer:
         self.selected_track_idx = -1 # Index de la piste sélectionnée
         self.track_edit = AdikTrackEdit(self) # Instanciation de la classe d'édition
         self.loop_manager = AdikLoop(self)
+        self.transport = AdikTransport(self)
 
         self.current_playback_frame = 0 # Position globale du player en frames
+        """
         self._playing = False
         self._recording = False # Retirer le commentaire pour que l'enregistrement soit fonctionnel
         self.recording_buffer = np.array([], dtype=np.float32) 
@@ -47,6 +50,8 @@ class AdikPlayer:
         self.recording_start_frame = 0 # La frame où l'enregistrement a commencé
         self.recording_end_frame = 0 # Initialiser la fin à la même position
         self.recording_mode = AdikTrack.RECORDING_MODE_REPLACE
+        """
+
 
         # total_duration_seconds et current_time_seconds seront gérés comme des propriétés (voir plus bas)
         self.current_time_seconds_cached = 0.0
@@ -145,242 +150,59 @@ class AdikPlayer:
     #----------------------------------------
     
     # --- Transport (Play/Pause/Stop) ---
+    # --- Fonctions de positionnement ---
+    # Fonctions déléguées à AdikTransport
     def is_playing(self):
-        return self._playing
+        return self.transport.is_playing()
 
     #----------------------------------------
 
     def is_recording(self):
-        return self._recording
+        return self.transport.is_recording()
 
     #----------------------------------------
 
     def play(self):
-        # Si on est en enregistrement, le bouton 'Play' agit comme 'Stop Recording'
-        if self._recording:
-            self.stop_recording()
-            return
-
-        if self._playing:
-            print("Déjà en lecture.")
-            return
-
-        print("Démarrage de la lecture...")
-        with self._lock:
-            self._playing = True
-            self._start_engine() # Appelle la méthode de l'engine pour démarrer le stream
+        self.transport.play()
 
     #----------------------------------------
 
     def pause(self):
-        if not self._playing and not self._recording:
-            print("Pas en lecture ou en enregistrement.")
-            return
-        
-        print("Mise en pause.")
-        with self._lock:
-            self._playing = False
-            if self._recording: # Si on était en enregistrement, finaliser
-                self._finish_recording()
-            # La gestion de l'arrêt du moteur est dans stop() ou stop_recording()
+        self.transport.pause()
 
     #----------------------------------------
 
     def stop(self):
-        if not self._playing and not self._recording and not self._is_engine_running():
-            print("Déjà arrêté.")
-            return
-
-        print("Arrêt du player.")
-
-        with self._lock:
-            self._playing = False
-            # Si on était en enregistrement, finaliser avant de réinitialiser
-            if self._recording:
-                self._finish_recording()
-            
-            self.current_playback_frame = 0
-            for track in self.track_list:
-                track.reset_playback_position() # Utilise la méthode correcte
-            
-        # Appelle la méthode de l'engine pour arrêter le stream
-        # Seulement si rien d'autre ne tourne (pas de lecture, pas d'enregistrement)
-        if not self._playing and not self._recording and self._is_engine_running():
-            self._stop_engine()
+        self.transport.stop()
 
     #----------------------------------------
 
-    # --- Méthodes pour l'enregistrement ---
     def start_recording(self):
-        """Démarre l'enregistrement audio à la position actuelle du player."""
-        if self._recording:
-            print("Player: Déjà en enregistrement. Appuyez sur 'R' de nouveau pour arrêter.")
-            return
-
-        selected_track = self.get_selected_track()
-        if not selected_track or not selected_track.is_armed():
-            print("Player: Aucune piste armée pour l'enregistrement.")
-            return
-
-        # Démarrer spécifiquement le stream d'entrée
-        if not self.audio_engine.is_input_running():
-            self.audio_engine.start_input_stream()
-
-        """
-        # S'assurer que le stream est actif (et configuré pour l'entrée)
-        if not self._is_engine_running():
-            self._start_engine()
-        """
-        
-        with self._lock:
-            self._recording = True
-            self.recording_buffer = np.array([], dtype=np.float32) # Effacer le buffer précédent
-            self.recording_sound = None # Réinitialiser l'objet AdikSound
-            
-            # Stocker la position de début d'enregistrement
-            self.recording_start_frame = self.current_playback_frame 
-            self.recording_end_frame = self.current_playback_frame # Initialiser la fin à la même position
-
-            # Ne pas réinitialiser la position de lecture ici
-            self._playing = True # Démarrer la lecture pour le monitoring pendant l'enregistrement
-            print(f"Player: Enregistrement démarré à la frame {self.recording_start_frame}.")
+        self.transport.start_recording()
 
     #----------------------------------------
 
     def stop_recording(self):
-        """Arrête l'enregistrement audio et déclenche la finalisation."""
-        if not self._recording:
-            print("Player: Pas en enregistrement.")
-            return
-        
-        print("Player: Arrêt de l'enregistrement.")
-        with self._lock:
-            # Cette fonction doit être appelée sans être sous un vérou (lock)
-            self._finish_recording() # Appelle la nouvelle fonction de finalisation
-            # Note: is_recording est mis à False dans _finish_recording
-            
-            """
-            # Arrêter le stream seulement si plus rien n'est actif
-            if not self._playing and not self._recording and self._is_engine_running():
-                self._stop_engine()
-            """
-
-        # Arrêter le stream d'entrée si nécessaire
-        ### Note: Cela doit se faire en dehors du vérou, pour éviter des vérous imbriqués
-        if self.audio_engine.is_input_running():
-            self.audio_engine.stop_input_stream()
-
-    #----------------------------------------
-    
-    def _finish_recording(self):
-        if not self._recording:
-            print("Player: Aucune session d'enregistrement active à finaliser (interne).")
-            return
-
-        print("Player: Finalisation de l'enregistrement...")
-        self._recording = False
-
-        if self.recording_buffer.size > 0:
-            self.recording_end_frame = self.current_playback_frame 
-            recorded_sound_data = self.recording_buffer
-            
-            selected_track = self.get_selected_track()
-
-            if selected_track:
-                # IMPORTANT : on passe le nombre de canaux de la prise (canaux d'entrée)
-                selected_track.arrange_take(
-                    new_take_audio_data=recorded_sound_data,
-                    take_start_frame=self.recording_start_frame,
-                    take_end_frame=self.recording_end_frame,
-                    recording_mode=self.recording_mode,
-                    new_take_channels=self.num_input_channels # <<< NOUVEAU
-                )
-                print(f"Player: Enregistrement arrangé sur la piste '{selected_track.name}'.")
-                # --- Mettre à jour la position de lecture de la piste ---
-                # On ajuste la position de lecture de la piste à la position globale du player.
-                # Cela permet de garantir qu'elle est bien synchronisée avec le reste des pistes.
-                selected_track.set_playback_position(self.current_playback_frame)
-
-            else:
-                new_track_name = f"Piste Enregistrée {len(self.track_list) + 1}"
-                new_track = self.add_track(new_track_name)
-                
-                take_length_frames = recorded_sound_data.size // self.num_input_channels
-                converted_data = AdikSound.convert_channels(recorded_sound_data, self.num_input_channels, self.num_output_channels, take_length_frames)
-
-                new_sound = AdikSound(
-                    name=f"adik_rec_{time.strftime('%H%M%S')}",
-                    audio_data=converted_data,
-                    sample_rate=self.sample_rate,
-                    num_channels=self.num_output_channels
-                )
-                new_track.set_audio_sound(new_sound, offset_frames=self.recording_start_frame)
-                print(f"Player: Enregistrement ajouté à une nouvelle piste '{new_track.name}' à la frame {self.recording_start_frame}.")
-                
-                # --- Mettre à jour la position de lecture de la nouvelle piste ---
-                new_track.set_playback_position(self.current_playback_frame)
-            
-            # self._update_total_duration_cache()
-            self._update_params()
-            self.recording_buffer = np.array([], dtype=np.float32)
-        else:
-            print("Player: Le buffer d'enregistrement est vide. Rien à finaliser.")
-        
-        print("Player: Enregistrement finalisé.")
+        self.transport.stop_recording()
 
     #----------------------------------------
 
     def set_recording_mode(self, mode: int):
-        """Définit le mode d'enregistrement pour les futures prises."""
-        if mode in [AdikTrack.RECORDING_MODE_REPLACE, AdikTrack.RECORDING_MODE_MIX]:
-            self.recording_mode = mode
-            mode_name = "Remplacement" if mode == AdikTrack.RECORDING_MODE_REPLACE else "Mixage"
-            print(f"Player: Mode d'enregistrement changé en '{mode_name}'.")
-        else:
-            print(f"Erreur: Mode d'enregistrement '{mode}' invalide.")
-
+        self.transport.set_recording_mode(mode)
+ 
     #----------------------------------------
-
+   
     def toggle_recording_mode(self):
-        """
-        Bascule entre les modes d'enregistrement REPLACE et MIX.
-        """
-        if self.recording_mode == AdikTrack.RECORDING_MODE_REPLACE:
-            self.set_recording_mode(AdikTrack.RECORDING_MODE_MIX)
-        else:
-            self.set_recording_mode(AdikTrack.RECORDING_MODE_REPLACE)
+        self.transport.toggle_recording_mode()
 
     #----------------------------------------
 
     def save_recording(self, filename=None):
-        """Sauvegarde le son de l'enregistrement actuel ou le dernier enregistré dans un fichier WAV."""
-        # Note: Cette fonction ne doit PAS appeler _finish_recording,
-        # elle doit être appelée APRES que l'enregistrement ait été arrêté et finalisé.
-        if self._recording:
-            print("Player: L'enregistrement est toujours actif. Veuillez l'arrêter d'abord pour le sauvegarder.")
-            return
+        return self.transport.save_recording(filename)
 
-        sound_to_save = self.recording_sound # Tente de sauvegarder le dernier son finalisé
-
-        if sound_to_save and sound_to_save.length_frames > 0:
-            if filename is None:
-                # Utilise un nom de fichier par défaut basé sur le nom du son
-                filename = f"/tmp/{sound_to_save.name.replace(' ', '_').replace(':', '')}.wav"
-
-            if AdikWaveHandler.save_wav(filename, sound_to_save):
-                print(f"Player: Enregistrement sauvegardé dans '{filename}'.")
-                return True
-            else:
-                print(f"Player: Échec de la sauvegarde de l'enregistrement dans '{filename}'.")
-                return False
-        else:
-            print("Player: Aucun enregistrement finalisé ou le buffer est vide. Rien à sauvegarder.")
-            print("Astuce: Appuyez sur 'R' pour démarrer l'enregistrement, puis 'R' ou 'Espace' ou 'V' pour le finaliser avant de sauvegarder.")
-            return False
-            
     #----------------------------------------
 
-    # --- Fonctions de positionnement ---
+    # --- Gestion du positionnement ---
     def _get_max_frames(self):
         """
         Calcule et retourne la durée maximale en frames parmi toutes les pistes chargées.
@@ -591,8 +413,8 @@ class AdikPlayer:
             beep()
 
         with self._lock:
-            if self._recording and indata is not None and indata.size > 0:
-                self.recording_buffer = np.append(self.recording_buffer, indata.astype(np.float32).flatten())
+            if self.transport._recording and indata is not None and indata.size > 0:
+                self.transport.recording_buffer = np.append(self.transport.recording_buffer, indata.astype(np.float32).flatten())
 
     #----------------------------------------
 
@@ -631,7 +453,7 @@ class AdikPlayer:
                
             # 4. Traitement de la lecture si le player est en mode PLAY
             # Mettre à jour la position du métronome même si le player est en pause
-            if not self._playing:
+            if not self.transport._playing:
                 if self.metronome.is_clicking():
                     self.metronome.playback_frame += num_frames
                     pass
@@ -645,7 +467,7 @@ class AdikPlayer:
                         should_mix_track = False
                     if track.is_muted():
                         should_mix_track = False
-                    if track.is_armed() and self._recording and self.recording_mode == track.RECORDING_MODE_REPLACE:
+                    if track.is_armed() and self.transport._recording and self.transport.recording_mode == track.RECORDING_MODE_REPLACE:
                         should_mix_track = False
 
                     if should_mix_track:
@@ -680,9 +502,9 @@ class AdikPlayer:
                             if self.current_playback_frame < (track.offset_frames + track.audio_sound.length_frames):
                                 all_tracks_finished = False
                                 break
-                    if all_tracks_finished and not self._recording:
+                    if all_tracks_finished and not self.transport._recording:
                         print("Player: Toutes les pistes ont fini de jouer. Arrêt automatique.")
-                        self._playing = False
+                        self.transport._playing = False
             
             outdata[:] = output_buffer.reshape((num_frames, self.num_output_channels))
 
