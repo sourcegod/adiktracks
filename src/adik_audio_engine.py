@@ -33,11 +33,13 @@ class AdikAudioEngine:
         # Les callbacks fournis par le player pour la lecture et l'enregistrement
         self._output_callback_function = None
         self._input_callback_function = None
+        # Un seul callback pour le stream duplex, comme sounddevice le gère
         self._duplex_callback_function = None
         
         # Statut du moteur
         self._is_running_output = False
         self._is_running_input = False
+        self._is_running_duplex = False
 
         print(f"AdikAudioEngine initialisé (SR: {self.sample_rate}, Block Size: {self.block_size}, Out Channels: {self.num_output_channels})")
 
@@ -60,6 +62,7 @@ class AdikAudioEngine:
             raise ValueError("Le callback fourni n'est pas une fonction callable.")
 
     #----------------------------------------
+
     def set_duplex_callback(self, callback_func):
         """Définit le callback pour le duplex (la lecture et l'enregistrement) """
         if callable(callback_func):
@@ -78,6 +81,9 @@ class AdikAudioEngine:
 
         self._audio_driver.start_output_stream(self._output_callback_function)
         self._is_running_output = True
+        self._is_running_input = False  # S'assurer que les autres streams sont à False
+        self._is_running_duplex = False
+
         print("Engine: Stream de sortie démarré.")
 
     #----------------------------------------
@@ -98,6 +104,10 @@ class AdikAudioEngine:
 
         self._audio_driver.start_input_stream(self._input_callback_function)
         self._is_running_input = True
+        # On peut démarrer un stream Input avec un Stream Output
+        # S'assurer que le stream duplex est à False
+        self._is_running_duplex = False
+
         print("Engine: Stream d'entrée démarré.")
 
     #----------------------------------------
@@ -118,7 +128,10 @@ class AdikAudioEngine:
          
         # Le pilote SoundDeviceAudioDriver gère un seul stream pour le duplex
         self._audio_driver.start_duplex_stream(self._duplex_callback_function)
-        self._is_running_output = True
+        self._is_running_duplex = True
+        # S'assurer que les streams duplex sont à False
+        self._is_running_output = False
+        self._is_running_input = False
         print("Engine: Stream duplex démarré.")
         
     #----------------------------------------
@@ -126,20 +139,20 @@ class AdikAudioEngine:
     def stop_duplex_stream(self):
         """Arrête le stream duplex via le pilote."""
         self._audio_driver.stop_duplex_stream()
-        self._is_running_output = False
+        self._is_running_duplex = False
         print("Engine: Stream duplex arrêté.")
 
     #----------------------------------------
 
     def is_running(self):
-        """Vérifie si un stream de sortie est actif."""
-        return self._is_running_output
+        """Vérifie si un stream de sortie est actif (sortie ou duplex)."""
+        return self._is_running_output or self._is_running_duplex
 
     #----------------------------------------
     
     def is_input_running(self):
-        """Vérifie si un stream d'entrée est actif."""
-        return self._is_running_input
+        """Vérifie si un stream d'entrée est actif (entrée ou duplex)."""
+        return self._is_running_input or self._is_running_duplex
 
     #----------------------------------------
 
@@ -147,6 +160,8 @@ class AdikAudioEngine:
         """Arrête tous les streams actifs."""
         self.stop_output_stream()
         self.stop_input_stream()
+        self.stop_duplex_stream()
+
         print("Engine: Tous les streams audio sont arrêtés.")
 
     #----------------------------------------
