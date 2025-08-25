@@ -227,8 +227,10 @@ class AdikTUI(object):
             self._app.toggle_play_pause()
         elif key == ord('a'):
             self._app.toggle_arm_track()
-        elif key == ord('b') or key == ord('B'):
+        elif key == ord('b'):
             self._app.forward()
+        elif key == ord('B'):
+            self._app.next_bar()
         elif key == ord('D'): # d: effacer l'audio de la piste
             self._app.erase_audio_from_track()
         elif key == ord('i'):
@@ -254,6 +256,8 @@ class AdikTUI(object):
             self._app.stop_playback()
         elif key == ord('w'):
             self._app.backward()
+        elif key == ord('W'):
+            self._app.prev_bar()
         elif key == ord('x'):
             self._app.toggle_mute_track()
 
