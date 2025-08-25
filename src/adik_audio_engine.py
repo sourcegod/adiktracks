@@ -10,6 +10,11 @@ import numpy as np
 import threading
 
 from sounddevice_audio_driver import SoundDeviceAudioDriver
+def beep():
+    print("\a")
+
+#----------------------------------------
+
 
 class AdikAudioEngine:
     """
@@ -197,6 +202,7 @@ class AdikAudioEngine:
     # Les fonctions de callback audio déplacées depuis AdikPlayer
     #----------------------------------------
 
+    # --- Gestion des fonctions Callbacks ---
     def _audio_input_callback(self, indata, frames, time_info, status):
         """
         Callback audio pour l'enregistrement (stream d'entrée).
@@ -334,7 +340,6 @@ class AdikAudioEngine:
 
             # Logique de sortie (playback + metronome)
             # Identique à _audio_output_callback
-            # with self._lock:
             # 2. Remplissage du buffer de sortie avec des zéros
             output_buffer = np.zeros(num_frames * self.num_output_channels, dtype=np.float32)
 
