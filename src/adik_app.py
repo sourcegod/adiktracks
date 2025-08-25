@@ -408,6 +408,52 @@ class AdikApp(object):
     #----------------------------------------
 
     #----------------------------------------
+    # Contrôles de mesure
+    #----------------------------------------
+
+    def get_bar(self):
+        """
+        Retourne la mesure actuelle en interrogeant le player.
+        """
+        bar, beat, tick = self.player.frame_to_bar(self.player.get_position())
+        self.display_message(f"Position actuelle: Mesure {bar}, Battement {beat}, Tick {tick}")
+        return bar, beat, tick
+
+    #----------------------------------------
+
+    def set_bar(self, num_bars):
+        """
+        Définit la position de lecture du player sur une mesure spécifique.
+        Affiche un message de succès ou d'erreur.
+        """
+        if self.player.set_bar(num_bars):
+            self.display_message(f"Déplacé à la mesure {num_bars}.")
+        else:
+            self.display_message("Erreur: Impossible de se déplacer à cette mesure.")
+
+    #----------------------------------------
+
+    def prev_bar(self):
+        """
+        Recule la position de lecture du player d'une mesure.
+        """
+        self.player.prev_bar()
+        current_bar, _, _ = self.get_bar()
+        self.display_message(f"Reculé à la mesure {current_bar}.")
+
+    #----------------------------------------
+
+    def next_bar(self):
+        """
+        Avance la position de lecture du player d'une mesure.
+        """
+        self.player.next_bar()
+        current_bar, _, _ = self.get_bar()
+        self.display_message(f"Avancé à la mesure {current_bar}.")
+
+    #----------------------------------------
+
+    #----------------------------------------
     # Gestion des Locateurs
     #----------------------------------------
 
