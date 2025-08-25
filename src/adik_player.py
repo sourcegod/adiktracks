@@ -50,7 +50,8 @@ class AdikPlayer:
         self.metronome.update_tempo()  # Initialiser le tempo au démarrage
         self._left_locator =0 # In frames
         self._right_locator =0 # In frames
-
+        self.time_signature = (4, 4) # (nombre de battements par mesure, valeur de la note par battement)
+        
         print(f"AdikPlayer initialisé (SR: {self.sample_rate}, Block Size: {self.block_size}, Out Channels: {self.num_output_channels}, In Channels: {self.num_input_channels})")
     #----------------------------------------
 
@@ -383,6 +384,62 @@ class AdikPlayer:
         validated_frame = max(0, min(frame_position, self.total_duration_frames_cached))
         
         self._right_locator = validated_frame # max(validated_frame, self._left_locator)
+
+    #----------------------------------------
+
+    # --- Gestion des mesures ---
+    def bar_to_frame(self, bar):
+        """
+        Convertit un numéro de mesure en position de trame.
+        """
+        beats_per_bar = self.time_signature[0]
+        frames_per_beat = self.metronome.frames_per_beat
+        frames_per_bar = beats_per_bar * frames_per_beat
+        return int(bar * frames_per_bar)
+
+    #----------------------------------------
+
+    def get_bar(self):
+        """
+        Retourne la mesure (bar) actuelle en fonction de la position de lecture.
+        """
+        beats_per_bar = self.time_signature[0]
+        frames_per_beat = self.metronome.frames_per_beat
+        if frames_per_beat == 0:
+            return 0
+        frames_per_bar = beats_per_bar * frames_per_beat
+        return int(self.current_playback_frame // frames_per_bar)
+
+    #----------------------------------------
+
+    def set_bar(self, num_bars):
+        """
+        Définit la position de lecture sur une mesure spécifique.
+        """
+        target_frame = self.bar_to_frame(num_bars)
+        self.set_position(target_frame)
+        print(f"Position définie à la mesure: {num_bars}")
+
+    #----------------------------------------
+
+    def prev_bar(self):
+        """
+        Déplace la position de lecture à la mesure précédente.
+        """
+        current_bar = self.get_bar()
+        if current_bar > 0:
+            self.set_bar(current_bar - 1)
+        else:
+            self.goto_start()
+    
+    #----------------------------------------
+
+    def next_bar(self):
+        """
+        Déplace la position de lecture à la mesure suivante.
+        """
+        current_bar = self.get_bar()
+        self.set_bar(current_bar + 1)
 
     #----------------------------------------
 
