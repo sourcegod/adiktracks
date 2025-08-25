@@ -22,7 +22,6 @@ class AdikAudioEngine:
     masquant les détails d'implémentation de l'API audio (comme sounddevice).
     Elle utilise un "pilote" pour communiquer avec le matériel audio.
     """
-    # def __init__(self, sample_rate=44100, block_size=1024, num_output_channels=2, num_input_channels=1):
     def __init__(self, player_instance, sample_rate=44100, block_size=1024, num_output_channels=2, num_input_channels=1):
         """
         Initialise le moteur audio avec les paramètres de stream.
@@ -34,7 +33,16 @@ class AdikAudioEngine:
         self.num_output_channels = num_output_channels
         self.num_input_channels = num_input_channels
 
-        self._player = player_instance
+        if player_instance is not None:
+            self._player = player_instance
+            self._metronome = self._player.metronome
+            self._transport = self._player.transport
+            self._loop = self._player.loop_manager
+        else:
+            self._player = None
+            self._metronome = None
+            self._transport = None
+            self._loop = None
         self._lock = threading.Lock()
 
         # L'instance du pilote audio, qui est responsable de la communication
@@ -46,15 +54,7 @@ class AdikAudioEngine:
             num_input_channels
         )
 
-        # """
-        # A A effacer, n'est plus nécessaire
-        # Les callbacks fournis par le player pour la lecture et l'enregistrement
-        self._output_callback_function = None
-        self._input_callback_function = None
-        # Un seul callback pour le stream duplex, comme sounddevice le gère
-        self._duplex_callback_function = None
-        # """
-        
+       
         # Statut du moteur
         self._is_running_output = False
         self._is_running_input = False
@@ -64,34 +64,6 @@ class AdikAudioEngine:
 
     #----------------------------------------
     
-    def set_output_callback(self, callback_func):
-        """Définit le callback pour la lecture."""
-        if callable(callback_func):
-            self._output_callback_function = callback_func
-        else:
-            raise ValueError("Le callback fourni n'est pas une fonction callable.")
-
-    #----------------------------------------
-
-    def set_input_callback(self, callback_func):
-        """Définit le callback pour l'enregistrement."""
-        if callable(callback_func):
-            self._input_callback_function = callback_func
-        else:
-            raise ValueError("Le callback fourni n'est pas une fonction callable.")
-
-    #----------------------------------------
-
-    def set_duplex_callback(self, callback_func):
-        """Définit le callback pour le duplex (la lecture et l'enregistrement) """
-        if callable(callback_func):
-            self._duplex_callback_function = callback_func
-        else:
-            raise ValueError("Le callback fourni n'est pas une fonction callable.")
-
-    #----------------------------------------
-
-
     def start_output_stream(self):
         """Démarre le stream de sortie via le pilote."""
         
@@ -216,10 +188,10 @@ class AdikAudioEngine:
             
         with self._lock:
             # On vérifie si le player est en train d'enregistrer.
-            if self._player.transport._recording and indata is not None and indata.size > 0:
+            if self._transport._recording and indata is not None and indata.size > 0:
                 # Ajoute les données d'entrée au buffer d'enregistrement du transport.
-                self._player.transport.recording_buffer = np.append(
-                    self._player.transport.recording_buffer, 
+                self._transport.recording_buffer = np.append(
+                    self._transport.recording_buffer, 
                     indata.astype(np.float32).flatten()
                 )
 
@@ -241,30 +213,30 @@ class AdikAudioEngine:
             output_buffer = np.zeros(num_frames * self.num_output_channels, dtype=np.float32)
 
             # 2. Logique de déclenchement du métronome
-            if self._player.metronome.is_clicking():
-                current_beat_index = self._player.metronome.playback_frame // self._player.metronome.frames_per_beat
-                next_beat_index = (self._player.metronome.playback_frame + num_frames) // self._player.metronome.frames_per_beat
+            if self._metronome.is_clicking():
+                current_beat_index = self._metronome.playback_frame // self._metronome.frames_per_beat
+                next_beat_index = (self._metronome.playback_frame + num_frames) // self._metronome.frames_per_beat
 
                 # Si le métronome vient d'être démarré et que la position est à zéro, on clique immédiatement.
-                if self._player.metronome.playback_frame == 0 and not self._player.metronome.is_click_playing():
+                if self._metronome.playback_frame == 0 and not self._metronome.is_click_playing():
                     beep()
-                    self._player.metronome.beat_count = 0
-                    self._player.metronome.play_click()
+                    self._metronome.beat_count = 0
+                    self._metronome.play_click()
                 
                 # Si, on détecte le passage au battement suivant
                 if current_beat_index < next_beat_index:
-                    if self._player.metronome.playback_frame > 0:
-                        self._player.metronome.play_click()
-                        self._player.metronome._increment_beat_count() # Incrémenter le compteur ici
+                    if self._metronome.playback_frame > 0:
+                        self._metronome.play_click()
+                        self._metronome._increment_beat_count() # Incrémenter le compteur ici
                         
                 # 3. Mixage du son du métronome dans le buffer de sortie
-                self._player.metronome.mix_click_data(output_buffer, num_frames)
+                self._metronome.mix_click_data(output_buffer, num_frames)
                 
             # 4. Traitement de la lecture si le player est en mode PLAY
             # Mettre à jour la position du métronome même si le player est en pause
-            if not self._player.transport._playing:
-                if self._player.metronome.is_clicking():
-                    self._player.metronome.playback_frame += num_frames
+            if not self._transport._playing:
+                if self._metronome.is_clicking():
+                    self._metronome.playback_frame += num_frames
                     pass
             else: # self._playing
                 solo_active = any(track.is_solo() for track in self._player.track_list)
@@ -275,7 +247,7 @@ class AdikAudioEngine:
                         should_mix_track = False
                     if track.is_muted():
                         should_mix_track = False
-                    if track.is_armed() and self._player.transport._recording and self._player.transport.recording_mode == track.RECORDING_MODE_REPLACE:
+                    if track.is_armed() and self._transport._recording and self._transport.recording_mode == track.RECORDING_MODE_REPLACE:
                         should_mix_track = False
 
                     if should_mix_track:
@@ -291,28 +263,28 @@ class AdikAudioEngine:
                 
                 # Mettre à jour la position du player et du métronome uniquement en mode lecture
                 self._player.current_playback_frame += num_frames
-                self._player.metronome.playback_frame = self._player.current_playback_frame
+                self._metronome.playback_frame = self._player.current_playback_frame
                 self._player.current_time_seconds_cached = self._player.current_playback_frame / self.sample_rate
 
                 # Gérer le bouclage
-                if self._player.loop_manager.is_looping() and self._player.current_playback_frame >= self._player.loop_manager._loop_end_frame:
-                    self._player.current_playback_frame = self._player.loop_manager._loop_start_frame
-                    self._player.metronome.playback_frame = self._player.current_playback_frame
+                if self._loop.is_looping() and self._player.current_playback_frame >= self._loop._loop_end_frame:
+                    self._player.current_playback_frame = self._loop._loop_start_frame
+                    self._metronome.playback_frame = self._player.current_playback_frame
                     for track in self._player.track_list:
                         track.playback_position = self._player.current_playback_frame
                     print(f"Player: Boucle terminée, repositionnement à {self._player.current_playback_frame} frames.")
                 
                 # Gérer l'arrêt en fin de lecture si le bouclage n'est pas actif
-                elif not self._player.loop_manager.is_looping():
+                elif not self._loop.is_looping():
                     all_tracks_finished = True
                     for track in self._player.track_list:
                         if track.audio_sound:
                             if self._player.current_playback_frame < (track.offset_frames + track.audio_sound.length_frames):
                                 all_tracks_finished = False
                                 break
-                    if all_tracks_finished and not self._player.transport._recording:
+                    if all_tracks_finished and not self._transport._recording:
                         print("Player: Toutes les pistes ont fini de jouer. Arrêt automatique.")
-                        self._player.transport._playing = False
+                        self._transport._playing = False
             
             # Copie le buffer de sortie vers le buffer sounddevice
             outdata[:] = output_buffer.reshape((num_frames, self.num_output_channels))
@@ -332,9 +304,9 @@ class AdikAudioEngine:
         # Identique à _audio_input_callback
         with self._lock:
             # 1. Remplissage du buffer de d'entrée
-            if self._player.transport._recording and indata is not None and indata.size > 0:
-                self._player.transport.recording_buffer = np.append(
-                    self._player.transport.recording_buffer, 
+            if self._transport._recording and indata is not None and indata.size > 0:
+                self._transport.recording_buffer = np.append(
+                    self._transport.recording_buffer, 
                     indata.astype(np.float32).flatten()
                 )
 
@@ -344,29 +316,29 @@ class AdikAudioEngine:
             output_buffer = np.zeros(num_frames * self.num_output_channels, dtype=np.float32)
 
             # 3. Logique de déclenchement du métronome
-            if self._player.metronome.is_clicking():
-                current_beat_index = self._player.metronome.playback_frame // self._player.metronome.frames_per_beat
-                next_beat_index = (self._player.metronome.playback_frame + num_frames) // self._player.metronome.frames_per_beat
+            if self._metronome.is_clicking():
+                current_beat_index = self._metronome.playback_frame // self._metronome.frames_per_beat
+                next_beat_index = (self._metronome.playback_frame + num_frames) // self._metronome.frames_per_beat
 
                 # Si le métronome vient d'être démarré et que la position est à zéro, on clique immédiatement.
-                if self._player.metronome.playback_frame == 0 and not self._player.metronome.is_click_playing():
+                if self._metronome.playback_frame == 0 and not self._metronome.is_click_playing():
                     beep()
-                    self._player.metronome.beat_count = 0
-                    self._player.metronome.play_click()
+                    self._metronome.beat_count = 0
+                    self._metronome.play_click()
                 
                 # Si, on détecte le passage au battement suivant
                 if current_beat_index < next_beat_index:
-                    if self._player.metronome.playback_frame > 0:
-                        self._player.metronome.play_click()
-                        self._player.metronome._increment_beat_count()
+                    if self._metronome.playback_frame > 0:
+                        self._metronome.play_click()
+                        self._metronome._increment_beat_count()
                         
                 # 4. Mixage du son du métronome dans le buffer de sortie
-                self._player.metronome.mix_click_data(output_buffer, num_frames)
+                self._metronome.mix_click_data(output_buffer, num_frames)
             
             # 5. Traitement de la lecture si le player est en mode PLAY
-            if not self._player.transport._playing:
-                if self._player.metronome.is_clicking():
-                    self._player.metronome.playback_frame += num_frames
+            if not self._transport._playing:
+                if self._metronome.is_clicking():
+                    self._metronome.playback_frame += num_frames
                     pass
             else: # self._playing
                 solo_active = any(track.is_solo() for track in self._player.track_list)
@@ -377,7 +349,7 @@ class AdikAudioEngine:
                         should_mix_track = False
                     if track.is_muted():
                         should_mix_track = False
-                    if track.is_armed() and self._player.transport._recording and self._player.transport.recording_mode == track.RECORDING_MODE_REPLACE:
+                    if track.is_armed() and self._transport._recording and self._transport.recording_mode == track.RECORDING_MODE_REPLACE:
                         should_mix_track = False
 
                     if should_mix_track:
@@ -392,26 +364,26 @@ class AdikAudioEngine:
                         track.get_audio_block(num_frames)
                 
                 self._player.current_playback_frame += num_frames
-                self._player.metronome.playback_frame = self._player.current_playback_frame
+                self._metronome.playback_frame = self._player.current_playback_frame
                 self._player.current_time_seconds_cached = self._player.current_playback_frame / self.sample_rate
 
-                if self._player.loop_manager.is_looping() and self._player.current_playback_frame >= self._player.loop_manager._loop_end_frame:
-                    self._player.current_playback_frame = self._player.loop_manager._loop_start_frame
-                    self._player.metronome.playback_frame = self._player.metronome._loop_start_frame
+                if self._loop.is_looping() and self._player.current_playback_frame >= self._loop._loop_end_frame:
+                    self._player.current_playback_frame = self._loop._loop_start_frame
+                    self._metronome.playback_frame = self._metronome._loop_start_frame
                     for track in self._player.track_list:
                         track.playback_position = self._player.current_playback_frame
                     print(f"Player: Boucle terminée, repositionnement à {self._player.current_playback_frame} frames.")
                 
-                elif not self._player.loop_manager.is_looping():
+                elif not self._loop.is_looping():
                     all_tracks_finished = True
                     for track in self._player.track_list:
                         if track.audio_sound:
                             if self._player.current_playback_frame < (track.offset_frames + track.audio_sound.length_frames):
                                 all_tracks_finished = False
                                 break
-                    if all_tracks_finished and not self._player.transport._recording:
+                    if all_tracks_finished and not self._transport._recording:
                         print("Player: Toutes les pistes ont fini de jouer. Arrêt automatique.")
-                        self._player.transport._playing = False
+                        self._transport._playing = False
             
             outdata[:] = output_buffer.reshape((num_frames, self.num_output_channels))
 

@@ -26,9 +26,6 @@ class AdikPlayer:
         self.num_output_channels = num_output_channels # Canaux de sortie du player/mixer
         self.num_input_channels = num_input_channels # NOUVEAU: Canaux d'entrée
 
-        # Instanciez l'Engine et utiliser ses fonctions de Callback internes
-        self.audio_engine = AdikAudioEngine(self, sample_rate, block_size, num_output_channels, num_input_channels)
-
         self.mixer = AdikMixer(self.sample_rate, self.num_output_channels)
 
         self.track_list = [] # Liste des objets AdikTrack
@@ -36,19 +33,13 @@ class AdikPlayer:
         self.track_edit = AdikTrackEdit(self) # Instanciation de la classe d'édition
         self.loop_manager = AdikLoop(self)
         self.transport = AdikTransport(self)
+        # --- Variables du métronome ---
+        self.metronome = AdikMetronome(sample_rate=sample_rate, num_channels=num_output_channels)
+        # Instanciez l'Engine et utiliser ses fonctions de Callback internes
+        # Doit être instancié après le Transport et le Metronome car son constructeur fait appel à ces instances.
+        self.audio_engine = AdikAudioEngine(self, sample_rate, block_size, num_output_channels, num_input_channels)
 
         self.current_playback_frame = 0 # Position globale du player en frames
-        """
-        self._playing = False
-        self._recording = False # Retirer le commentaire pour que l'enregistrement soit fonctionnel
-        self.recording_buffer = np.array([], dtype=np.float32) 
-        self.recording_sound = None 
-        self.recording_start_frame = 0 # La frame où l'enregistrement a commencé
-        self.recording_end_frame = 0 # Initialiser la fin à la même position
-        self.recording_mode = AdikTrack.RECORDING_MODE_REPLACE
-        """
-
-
         # total_duration_seconds et current_time_seconds seront gérés comme des propriétés (voir plus bas)
         self.current_time_seconds_cached = 0.0
         self.total_duration_seconds_cached = 0.0 # Cache pour la durée totale
@@ -56,8 +47,6 @@ class AdikPlayer:
         
         self._lock = threading.Lock() # Verrou pour protéger les accès concurrents
 
-        # --- Variables du métronome ---
-        self.metronome = AdikMetronome(sample_rate=sample_rate, num_channels=num_output_channels)
         self.metronome.update_tempo()  # Initialiser le tempo au démarrage
         self._left_locator =0 # In frames
         self._right_locator =0 # In frames
