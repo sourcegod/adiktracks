@@ -6,7 +6,7 @@
     Author: Coolbrother
 
 """
-
+import numpy as np
 import threading
 
 from sounddevice_audio_driver import SoundDeviceAudioDriver
@@ -17,8 +17,8 @@ class AdikAudioEngine:
     masquant les détails d'implémentation de l'API audio (comme sounddevice).
     Elle utilise un "pilote" pour communiquer avec le matériel audio.
     """
-    def __init__(self, sample_rate=44100, block_size=1024, num_output_channels=2, num_input_channels=1):
-        # def __init__(self, player_instance, sample_rate=44100, block_size=1024, num_output_channels=2, num_input_channels=1):
+    # def __init__(self, sample_rate=44100, block_size=1024, num_output_channels=2, num_input_channels=1):
+    def __init__(self, player_instance, sample_rate=44100, block_size=1024, num_output_channels=2, num_input_channels=1):
         """
         Initialise le moteur audio avec les paramètres de stream.
         Une référence à l'instance de la classe Player est nécessaire
@@ -29,7 +29,7 @@ class AdikAudioEngine:
         self.num_output_channels = num_output_channels
         self.num_input_channels = num_input_channels
 
-        # self._player = player_instance
+        self._player = player_instance
         self._lock = threading.Lock()
 
         # L'instance du pilote audio, qui est responsable de la communication
@@ -89,11 +89,15 @@ class AdikAudioEngine:
 
     def start_output_stream(self):
         """Démarre le stream de sortie via le pilote."""
+        
+        """
         if self._output_callback_function is None:
             print("Engine: Aucun callback de sortie défini. Impossible de démarrer le stream.")
             return
-
         self._audio_driver.start_output_stream(self._output_callback_function)
+        """
+
+        self._audio_driver.start_output_stream(self._audio_output_callback)
         self._is_running_output = True
         self._is_running_input = False  # S'assurer que les autres streams sont à False
         self._is_running_duplex = False
@@ -112,13 +116,17 @@ class AdikAudioEngine:
 
     def start_input_stream(self):
         """Démarre le stream d'entrée via le pilote."""
+        
+        """
         if self._input_callback_function is None:
             print("Engine: Aucun callback d'entrée défini. Impossible de démarrer le stream.")
             return
-
         self._audio_driver.start_input_stream(self._input_callback_function)
+        """
+
+        self._audio_driver.start_input_stream(self._audio_input_callback)
         self._is_running_input = True
-        # On peut démarrer un stream Input avec un Stream Output
+        # On arrête pas le Stream Output car on peut démarrer un stream Input avec un Stream Output
         # S'assurer que le stream duplex est à False
         self._is_running_duplex = False
 
@@ -136,12 +144,17 @@ class AdikAudioEngine:
 
     def start_duplex_stream(self):
         """Démarre un stream duplex (entrée et sortie) via le pilote."""
+        
+        """
         if self._duplex_callback_function is None: 
             print("Engine: Le callback (Duplex) doit être défini pour un stream duplex.")
             return
          
-        # Le pilote SoundDeviceAudioDriver gère un seul stream pour le duplex
         self._audio_driver.start_duplex_stream(self._duplex_callback_function)
+        """
+
+        # Le pilote SoundDeviceAudioDriver gère un seul stream pour le duplex
+        self._audio_driver.start_duplex_stream(self._audio_duplex_callback)
         self._is_running_duplex = True
         # S'assurer que les streams duplex sont à False
         self._is_running_output = False
@@ -309,13 +322,23 @@ class AdikAudioEngine:
             print(f"Status du callback duplex: {status}", flush=True)
             beep()
 
-        # Logique de sortie (playback + metronome)
-        # Identique à _audio_output_callback
+        # Logique d'entrée (recording)
+        # Identique à _audio_input_callback
         with self._lock:
-            # 1. Remplissage du buffer de sortie avec des zéros
+            # 1. Remplissage du buffer de d'entrée
+            if self._player.transport._recording and indata is not None and indata.size > 0:
+                self._player.transport.recording_buffer = np.append(
+                    self._player.transport.recording_buffer, 
+                    indata.astype(np.float32).flatten()
+                )
+
+            # Logique de sortie (playback + metronome)
+            # Identique à _audio_output_callback
+            # with self._lock:
+            # 2. Remplissage du buffer de sortie avec des zéros
             output_buffer = np.zeros(num_frames * self.num_output_channels, dtype=np.float32)
 
-            # 2. Logique de déclenchement du métronome
+            # 3. Logique de déclenchement du métronome
             if self._player.metronome.is_clicking():
                 current_beat_index = self._player.metronome.playback_frame // self._player.metronome.frames_per_beat
                 next_beat_index = (self._player.metronome.playback_frame + num_frames) // self._player.metronome.frames_per_beat
@@ -332,10 +355,10 @@ class AdikAudioEngine:
                         self._player.metronome.play_click()
                         self._player.metronome._increment_beat_count()
                         
-                # 3. Mixage du son du métronome dans le buffer de sortie
+                # 4. Mixage du son du métronome dans le buffer de sortie
                 self._player.metronome.mix_click_data(output_buffer, num_frames)
             
-            # 4. Traitement de la lecture si le player est en mode PLAY
+            # 5. Traitement de la lecture si le player est en mode PLAY
             if not self._player.transport._playing:
                 if self._player.metronome.is_clicking():
                     self._player.metronome.playback_frame += num_frames
@@ -387,24 +410,14 @@ class AdikAudioEngine:
             
             outdata[:] = output_buffer.reshape((num_frames, self.num_output_channels))
 
-        # Logique d'entrée (recording)
-        # Identique à _audio_input_callback
-        with self._lock:
-            if self._player.transport._recording and indata is not None and indata.size > 0:
-                self._player.transport.recording_buffer = np.append(
-                    self._player.transport.recording_buffer, 
-                    indata.astype(np.float32).flatten()
-                )
-
     #----------------------------------------
 
 #========================================
 
 if __name__ == "__main__":
     # For testing
-    app = AdikAudioEngine()
-    # app = AdikAudioEngine(None)
-    # app.init_player()
+    # app = AdikAudioEngine()
+    app = AdikAudioEngine(None)
 
     input("It's OK...")
     

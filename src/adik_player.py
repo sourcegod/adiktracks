@@ -27,9 +27,9 @@ class AdikPlayer:
         self.num_input_channels = num_input_channels # NOUVEAU: Canaux d'entrée
 
         # Instanciez l'Engine et définissez son callback
-        self.audio_engine = AdikAudioEngine(sample_rate, block_size, num_output_channels, num_input_channels)
-        self.audio_engine.set_output_callback(self._audio_output_callback)
-        self.audio_engine.set_input_callback(self._audio_input_callback)
+        self.audio_engine = AdikAudioEngine(self, sample_rate, block_size, num_output_channels, num_input_channels)
+        # self.audio_engine.set_output_callback(self._audio_output_callback)
+        # self.audio_engine.set_input_callback(self._audio_input_callback)
 
         self.mixer = AdikMixer(self.sample_rate, self.num_output_channels)
 
@@ -400,6 +400,7 @@ class AdikPlayer:
     #----------------------------------------
 
 
+    '''
     # --- Gestion du Callback ---
     def _audio_input_callback(self, indata, frames, time_info, status):
         """
@@ -507,7 +508,7 @@ class AdikPlayer:
             outdata[:] = output_buffer.reshape((num_frames, self.num_output_channels))
 
     #----------------------------------------
-
+    '''
 
     '''
     def _audio_duplex_callback(self, indata, outdata, num_frames, time_info, status):
