@@ -291,6 +291,18 @@ class AdikPlayer:
 
     #----------------------------------------
 
+    def get_beat(self):
+        """
+        Retourne le battement actuel en fonction de la position de lecture.
+        """
+        frames_per_beat = self.metronome.frames_per_beat
+        if frames_per_beat == 0:
+            return 0
+        return int(self.current_playback_frame // frames_per_beat) % self.time_signature[0]
+
+    #----------------------------------------
+
+
     def get_bar(self):
         """
         Retourne la mesure (bar) actuelle en fonction de la position de lecture.
