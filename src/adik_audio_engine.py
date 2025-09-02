@@ -214,30 +214,51 @@ class AdikAudioEngine:
 
             # 2. Logique de déclenchement du métronome
             if self._metronome.is_clicking():
-                current_beat_index = self._metronome.playback_frame // self._metronome.frames_per_beat
-                next_beat_index = (self._metronome.playback_frame + num_frames) // self._metronome.frames_per_beat
+                # Utiliser la position du métronome qui avance indépendamment
+                current_beat_index = int(self._metronome.playback_frame // self._metronome.frames_per_beat)
+                end_beat_index = int((self._metronome.playback_frame + num_frames) // self._metronome.frames_per_beat)
 
+                # Boucle pour vérifier les battements dans le bloc de num_frames
+                # C'est une méthode plus robuste pour détecter les transitions de battements
+                if current_beat_index < end_beat_index:
+                    # Calculer la position exacte du prochain clic
+                    next_click_frame = (end_beat_index) * self._metronome.frames_per_beat
+                    offset_in_buffer = next_click_frame - self._metronome.playback_frame
+                    
+                    # S'assurer que le clic est bien dans le buffer
+                    if 0 <= offset_in_buffer < num_frames:
+                        # Déterminer si c'est un battement fort ou faible
+                        beats_per_bar = self._player.time_signature[0]
+                        beat_count = (end_beat_index) % beats_per_bar
+
+                        click_type = 'strong' if beat_count == 0 else 'weak'
+                        
+                        self._metronome.play_click(click_type=click_type)
+                        self._metronome.mix_click_data(
+                            output_buffer, 
+                            num_frames - offset_in_buffer, 
+                            offset_frames=offset_in_buffer
+                        )
+                    
                 # Si le métronome vient d'être démarré et que la position est à zéro, on clique immédiatement.
                 if self._metronome.playback_frame == 0 and not self._metronome.is_click_playing():
-                    beep()
-                    self._metronome.beat_count = 0
-                    self._metronome.play_click()
-                
-                # Si, on détecte le passage au battement suivant
-                if current_beat_index < next_beat_index:
-                    if self._metronome.playback_frame > 0:
-                        self._metronome.play_click()
-                        self._metronome._increment_beat_count() # Incrémenter le compteur ici
-                        
-                # 3. Mixage du son du métronome dans le buffer de sortie
-                self._metronome.mix_click_data(output_buffer, num_frames)
-                
+                    self._metronome.play_click(click_type='strong')
+                    self._metronome.mix_click_data(output_buffer, num_frames)
+
+            # 3. Mettre à jour la position du métronome même si le player est en pause
+            # Ceci est la partie clé de la solution. La position du métronome avance toujours.
+            self._metronome.playback_frame += num_frames
+
             # 4. Traitement de la lecture si le player est en mode PLAY
             # Mettre à jour la position du métronome même si le player est en pause
             if not self._transport._playing:
+                """
+                # Mettre à jour la position du métronome même si le player est en pause
                 if self._metronome.is_clicking():
                     self._metronome.playback_frame += num_frames
-                    pass
+                    # beep()
+                """
+                
             else: # self._playing
                 solo_active = any(track.is_solo() for track in self._player.track_list)
 
@@ -263,7 +284,7 @@ class AdikAudioEngine:
                 
                 # Mettre à jour la position du player et du métronome uniquement en mode lecture
                 self._player.current_playback_frame += num_frames
-                self._metronome.playback_frame = self._player.current_playback_frame
+                # self._metronome.playback_frame = self._player.current_playback_frame
                 self._player.current_time_seconds_cached = self._player.current_playback_frame / self.sample_rate
 
                 # Gérer le bouclage
@@ -285,6 +306,11 @@ class AdikAudioEngine:
                     if all_tracks_finished and not self._transport._recording:
                         print("Player: Toutes les pistes ont fini de jouer. Arrêt automatique.")
                         self._transport._playing = False
+
+            # 5. Mixage du son du métronome (si un clic est en cours)
+            if self._metronome.is_click_playing():
+                self._metronome.mix_click_data(output_buffer, num_frames)
+
             
             # Copie le buffer de sortie vers le buffer sounddevice
             outdata[:] = output_buffer.reshape((num_frames, self.num_output_channels))

@@ -9,7 +9,6 @@ class AdikMetronome:
         self.num_channels = num_channels
         self.tempo_bpm = 100.0
         self.frames_per_beat = 0
-        self.beat_count = 0
         self._clicking = False
         self.playback_frame = 0
         self.strong_beat_click_data = None
@@ -17,6 +16,7 @@ class AdikMetronome:
         self.click_sound_position = 0
         self._click_playing = False
         self._lock = None  # Le verrou sera géré par AdikPlayer
+        self.last_clicked_beat = -1 # Nouvelle variable pour la détection
         self.metronome_thread = None
         self.thread_stop_event = threading.Event()
 
@@ -25,10 +25,16 @@ class AdikMetronome:
 
     #----------------------------------------
 
+    def sync_with_player_position(self, player_frame):
+        """Synchronise la position du métronome avec celle du lecteur."""
+        self.playback_frame = player_frame
+
+    #----------------------------------------
+
     def update_tempo(self, bpm=None):
         """Met à jour le tempo du métronome."""
         if bpm is not None:
-            if bpm > 0 or bpm <= 800:
+            if 0 < bpm <= 800:
                 self.tempo_bpm = bpm
         
         frames_per_second = self.sample_rate
@@ -43,6 +49,7 @@ class AdikMetronome:
         click_duration_seconds = 0.050
         amplitude = 0.2
         
+        # Ce sont des exemples. Assurez-vous que AdikSound.sine_wave existe.
         self.strong_beat_click_data = AdikSound.sine_wave(
             freq=880,
             dur=click_duration_seconds,
@@ -64,78 +71,56 @@ class AdikMetronome:
         """Active ou désactive le métronome."""
         self._clicking = not self._clicking
         if self._clicking:
-            # Réinitialisation pour un départ sur un temps fort
-            if is_playing:
-                self.playback_frame = 0 # Sera synchronisé par AdikPlayer
-            else:
-                self.playback_frame = 0
-            self.beat_count = 0
+            self.last_clicked_beat = -1 # Réinitialiser le compteur de battements
+            self.playback_frame = 0
             print("Metronome: Activé.")
         else:
+            self.last_clicked_beat = -1
+            self.playback_frame = 0
             print("Metronome: Désactivé.")
 
     #----------------------------------------
 
-    def play_click(self):
+    def play_click(self, click_type='weak'):
         """Déclenche la lecture du son de clic."""
         self.click_sound_position = 0
         self._click_playing = True
+        self.current_click_data = self.strong_beat_click_data if click_type == 'strong' else self.weak_beat_click_data
+        # print("\a")
 
     #----------------------------------------
 
-    def mix_click_data(self, output_buffer, num_frames):
+    def mix_click_data(self, output_buffer, num_frames, offset_frames=0):
         """Mixe le son du métronome dans le buffer de sortie."""
         if not self._click_playing:
             return
 
-        click_sound = self.strong_beat_click_data if self.beat_count == 0 else self.weak_beat_click_data
+        click_sound = self.current_click_data
         
         if click_sound is None:
             return
 
         click_sound_length_frames = click_sound.length_frames
         remaining_frames_in_click = click_sound_length_frames - self.click_sound_position
-        frames_to_mix = min(num_frames, remaining_frames_in_click)
+        frames_to_mix = min(num_frames - offset_frames, remaining_frames_in_click)
 
         if frames_to_mix > 0:
-            start_index = self.click_sound_position * self.num_channels
-            end_index = start_index + frames_to_mix * self.num_channels
-            click_slice = click_sound.audio_data[start_index:end_index]
+            start_index_click = self.click_sound_position * self.num_channels
+            end_index_click = start_index_click + frames_to_mix * self.num_channels
+            click_slice = click_sound.audio_data[start_index_click:end_index_click]
             
-            if click_slice.size == frames_to_mix * self.num_channels:
-                output_buffer[:click_slice.size] += click_slice
+            start_index_output = offset_frames * self.num_channels
+            end_index_output = start_index_output + click_slice.size
+            
+            if click_slice.size > 0:
+                output_buffer[start_index_output:end_index_output] += click_slice
 
             self.click_sound_position += frames_to_mix
 
         if self.click_sound_position >= click_sound_length_frames:
             self._click_playing = False
             self.click_sound_position = 0
-
-    #----------------------------------------
-
-    def _increment_beat_count(self):
-        """
-        Incrémente le compteur de battements et gère le bouclage.
-        """
-        self.beat_count = (self.beat_count + 1) % 4
-
-    #----------------------------------------
-
-    def start_click(self):
-        """Active le métronome."""
-        self._clicking = True
-        self.beat_count = 0
-        self.play_frame =0
-        print("Metronome: Activé.")
-
-    #----------------------------------------
-
-    def stop_click(self):
-        """Désactive le métronome."""
-        self._clicking = False
-        self.beat_count = 0
-        self.play_frame =0
-        print("Metronome: Désactivé.")
+            self.current_click_data = None
 
     #----------------------------------------
 
@@ -151,7 +136,8 @@ class AdikMetronome:
 
     #----------------------------------------
 
-
+    '''
+    Deprecated functions
     def _metronome_runner(self):
         # deprecated function
         """
@@ -192,3 +178,5 @@ class AdikMetronome:
                 self.metronome_thread = None
 
     #----------------------------------------
+    '''
+

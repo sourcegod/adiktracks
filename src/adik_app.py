@@ -591,6 +591,7 @@ class AdikApp(object):
             return # Quitter si le son ne peut pas être chargé
         
         self.player._update_params()
+        self.player._start_engine()
     #----------------------------------------
 
  
