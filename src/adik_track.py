@@ -1,8 +1,14 @@
 # adik_track.py
 import numpy as np
 from adik_sound import AdikSound # Pour associer un son à la piste
+from adik_clip import AdikClip # Pour gérer les segments de son
 
 class AdikTrack:
+    """
+    Représente une piste audio dans une DAW.
+    Une piste contient maintenant une liste de clips audio.
+    """
+
     _next_id = 0 # Pour générer des IDs uniques de piste
 
     # Définition des modes d'enregistrement
@@ -18,8 +24,11 @@ class AdikTrack:
         self.num_channels = num_channels # Les canaux de sortie de la piste (typiquement 2 pour stéréo)
 
         self.audio_sound = None # Un objet AdikSound chargé dans cette piste
+        self.clips: List[AdikClip] = [] # La liste des clips de cette piste
+        self.current_clip: Optional[AdikClip] = None # Le clip en cours de lecture
+        
         self.playback_position = 0 # Position de lecture actuelle en FRAMES (non en samples)
-        self.offset_frames = 0 # Offset en frames pour le début du son sur la piste
+        self.offset_frames = 0 # Cet offset n'est plus pertinent avec les clips, mais on le garde pour compatibilité
 
         self.volume = 1.0 # Volume linéaire (0.0 à 1.0)
         self.volume_mix = 0.8 # volume global
@@ -121,8 +130,94 @@ class AdikTrack:
             self._update_duration()
 
     #----------------------------------------
+    # --- Méthodes de gestion des clips ---
 
-    def get_audio_block(self, num_frames_to_generate):
+    def add_clip(self, clip: AdikClip):
+        """
+        Ajoute un nouveau clip à la liste des clips de la piste.
+        """
+        self.clips.append(clip)
+        self.clips.sort(key=lambda c: c.start_frame) # Garder les clips triés par leur position de départ
+        print(f"Clip '{clip.name}' ajouté à la piste '{self.name}'.")
+
+    #----------------------------------------
+
+    # --- Méthodes de lecture et de traitement audio ---
+
+    def get_audio_block(self, num_frames_to_generate: int) -> np.ndarray:
+        """
+        Génère un bloc audio pour la lecture de cette piste en itérant sur les clips.
+        Retourne un tableau NumPy de float32 (frames * num_channels).
+        Met à jour la position de lecture de la piste.
+        """
+        output_block = AdikSound.new_audio_data(num_frames_to_generate * self.num_channels)
+
+        if self._muted or not self.clips:
+            self.playback_position += num_frames_to_generate
+            return output_block
+
+        # Parcourir chaque clip pour voir s'il chevauche le bloc de lecture actuel
+        for clip in self.clips:
+            # Calculer les points de début et de fin du clip dans l'espace de lecture global
+            clip_end_global_frame = clip.start_frame + clip.len_frames
+            block_end_global_frame = self.playback_position + num_frames_to_generate
+
+            # Vérifier s'il y a un chevauchement entre le bloc de lecture et le clip
+            if self.playback_position < clip_end_global_frame and block_end_global_frame > clip.start_frame:
+                # Calculer la zone de chevauchement en frames
+                overlap_start_frame = max(self.playback_position, clip.start_frame)
+                overlap_end_frame = min(block_end_global_frame, clip_end_global_frame)
+                overlap_length_frames = overlap_end_frame - overlap_start_frame
+                
+                if overlap_length_frames <= 0:
+                    continue
+
+                # Définir le clip en cours de lecture
+                self.current_clip = clip
+
+                # Calculer le décalage dans l'audio source du clip
+                start_in_clip_frames = max(0, self.playback_position - clip.start_frame)
+                start_in_clip_samples = int(start_in_clip_frames * clip.audio_sound.num_channels)
+
+                # Extraire le bloc audio du clip
+                clip_data = clip.get_audio_data_for_playback(start_in_clip_samples, int(overlap_length_frames * clip.audio_sound.num_channels))
+                
+                # Convertir les canaux si nécessaire
+                processed_data = AdikSound.convert_channels(
+                    clip_data,
+                    clip.audio_sound.num_channels,
+                    self.num_channels,
+                    overlap_length_frames
+                )
+                
+                # Déterminer où placer les données dans le bloc de sortie
+                dest_start_frame = overlap_start_frame - self.playback_position
+                dest_start_sample = int(dest_start_frame * self.num_channels)
+                
+                # Mixer les données du clip dans le bloc de sortie
+                output_block[dest_start_sample : dest_start_sample + processed_data.size] += processed_data
+
+        # Appliquer le volume et le panoramique au bloc de sortie final
+        if self.volume != 1.0 or self.pan != 0.0:
+            if self.num_channels == 2:
+                reshaped_data = output_block.reshape(-1, 2)
+                gain_left = (1.0 - self.pan)
+                gain_right = (1.0 + self.pan)
+                reshaped_data[:, 0] *= (self.volume * gain_left)
+                reshaped_data[:, 1] *= (self.volume * gain_right)
+                output_block[:] = reshaped_data.flatten()
+            else:
+                output_block *= self.volume
+
+        self.playback_position += num_frames_to_generate
+        return output_block
+
+    #----------------------------------------
+
+    # --- Autres méthodes de la classe (pas de changement) ---
+
+    '''
+    def get_audio_block_old(self, num_frames_to_generate):
         """
         Génère un bloc audio pour la lecture de cette piste, en tenant compte de l'offset.
         Retourne un tableau NumPy de float32 (frames * num_channels).
@@ -208,7 +303,8 @@ class AdikTrack:
         return output_block
 
     #----------------------------------------
-   
+    '''
+
     def arrange_take(self, new_take_audio_data: np.ndarray, take_start_frame: int, take_end_frame: int, recording_mode: int, new_take_channels: int):
         """
         Arrange une nouvelle prise sur le son existant de la piste.
