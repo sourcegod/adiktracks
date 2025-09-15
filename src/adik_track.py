@@ -24,7 +24,7 @@ class AdikTrack:
         self.num_channels = num_channels # Les canaux de sortie de la piste (typiquement 2 pour stéréo)
 
         self.audio_sound = None # Un objet AdikSound chargé dans cette piste
-        self.clips: List[AdikClip] = [] # La liste des clips de cette piste
+        self.clip_list: List[AdikClip] = [] # La liste des clips de cette piste
         self.current_clip: Optional[AdikClip] = None # Le clip en cours de lecture
         
         self.playback_position = 0 # Position de lecture actuelle en FRAMES (non en samples)
@@ -136,8 +136,8 @@ class AdikTrack:
         """
         Ajoute un nouveau clip à la liste des clips de la piste.
         """
-        self.clips.append(clip)
-        self.clips.sort(key=lambda c: c.start_frame) # Garder les clips triés par leur position de départ
+        self.clip_list.append(clip)
+        self.clip_list.sort(key=lambda c: c.start_frame) # Garder les clips triés par leur position de départ
         print(f"Clip '{clip.name}' ajouté à la piste '{self.name}'.")
 
     #----------------------------------------
@@ -152,12 +152,12 @@ class AdikTrack:
         """
         output_block = AdikSound.new_audio_data(num_frames_to_generate * self.num_channels)
 
-        if self._muted or not self.clips:
+        if self._muted or not self.clip_list:
             self.playback_position += num_frames_to_generate
             return output_block
 
         # Parcourir chaque clip pour voir s'il chevauche le bloc de lecture actuel
-        for clip in self.clips:
+        for clip in self.clip_list:
             # Calculer les points de début et de fin du clip dans l'espace de lecture global
             clip_end_global_frame = clip.start_frame + clip.len_frames
             block_end_global_frame = self.playback_position + num_frames_to_generate

@@ -116,7 +116,8 @@ class AdikTUI(object):
         
         self.track_window.move(ypos, 0)
         self.track_window.clrtoeol() # Effacer jusqu'à la fin de la ligne
-# raffraîchir pour que le lecteur d'écran voit le changement
+        
+        # raffraîchir pour que le lecteur d'écran voit le changement
         self.track_window.refresh() 
         # Attendre pour le lecteur d'écran
         time.sleep(0.05)

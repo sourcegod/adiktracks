@@ -2,7 +2,7 @@
 
 import numpy as np
 from adik_sound import AdikSound
-from typing import List, Any
+from typing import List, Any, Optional
 
 class AdikClip:
     """
@@ -12,16 +12,7 @@ class AdikClip:
     """
     _next_id = 0
 
-    def __init__(self, audio_sound: AdikSound, start_frame: int, end_frame: int, name: str = None):
-        """
-        Initialise une instance de AdikClip.
-
-        Args:
-            audio_sound (AdikSound): L'objet AdikSound source pour ce clip.
-            start_frame (int): Le début du clip en frames (par rapport au début de la timeline de la piste).
-            end_frame (int): La fin du clip en frames (par rapport au début de la timeline de la piste).
-            name (str): Nom optionnel pour le clip.
-        """
+    def __init__(self, name: str, audio_sound: AdikSound, start_frame: int = 0, offset_frames: int = 0):
         self.id = AdikClip._next_id
         AdikClip._next_id += 1
 
@@ -33,47 +24,86 @@ class AdikClip:
         # Position de départ et de fin du clip en frames sur la timeline de la piste.
         self.start_frame = start_frame
         self.end_frame = end_frame
-        
+        self.offset_frames = offset_frames  # Décalage de l'audio source, en frames
         # Longueur du clip en frames.
         self.len_frames = self.end_frame - self.start_frame
 
         # Liste pour stocker des événements (automation, MIDI, etc.).
         self.event_list: List[Any] = []
         
+        self.set_audio_sound(audio_sound, offset_frames)
         print(f"AdikClip '{self.name}' (ID: {self.id}) créé. Durée: {self.len_frames} frames.")
+
+    #----------------------------------------
+
+    def get_audio_sound(self) -> Optional[AdikSound]:
+        """
+        Retourne l'objet AdikSound associé à ce clip.
+        """
+        return self.audio_sound
+
+    #----------------------------------------
+
+    def set_audio_sound(self, sound: AdikSound, offset_frames: int = 0):
+        """
+        Assigne un objet AdikSound au clip.
+        Si le nombre de canaux du son ne correspond pas à la piste, il est converti.
+        Note : La conversion de canal est gérée au niveau du clip pour une plus grande flexibilité.
+        """
+        self.audio_sound = sound
+        self.offset_frames = offset_frames
+        self._update_duration()
+        print(f"Son '{self.audio_sound.name}' assigné au clip '{self.name}' avec un offset de {self.offset_frames} frames.")
+
+    #----------------------------------------
+    
+    def get_audio_data(self) -> Optional[np.ndarray]:
+        """
+        Retourne les données audio du son associé au clip.
+        """
+        if self.audio_sound is not None:
+            return self.audio_sound.audio_data
+        return None
+
+    #----------------------------------------
+
+    def set_audio_data(self, audio_data: np.ndarray):
+        """
+        Met à jour les données audio du son associé au clip.
+        """
+        if self.audio_sound is not None:
+            self.audio_sound.set_audio_data(audio_data)
+            self._update_duration()
 
     #----------------------------------------
 
     def get_audio_data_for_playback(self, start_sample: int, num_samples: int) -> np.ndarray:
         """
-        Extrait une portion des données audio du son source, en tenant compte
-        de la position de lecture du clip.
-        
-        Args:
-            start_sample (int): Le point de départ en échantillons dans l'audio_sound.
-            num_samples (int): Le nombre d'échantillons à extraire.
-        
-        Returns:
-            np.ndarray: Le bloc audio extrait, ou un bloc de zéros si la zone de lecture
-                        est en dehors des limites du clip.
+        Retourne les données audio d'un bloc spécifique, en tenant compte
+        du décalage du clip.
         """
         if self.audio_sound is None:
-            return np.zeros(num_samples, dtype=np.float32)
+            return np.array([], dtype=np.float32)
 
-        # Assurer que l'index de fin ne dépasse pas la taille des données du son source
-        end_sample = min(start_sample + num_samples, self.audio_sound.audio_data.size)
+        start = start_sample + int(self.offset_frames * self.audio_sound.num_channels)
+        end = start + num_samples
         
-        # Extraire la portion des données audio
-        clip_data = self.audio_sound.audio_data[start_sample:end_sample].copy()
+        # S'assurer que les indices ne dépassent pas la longueur des données
+        end = min(end, self.audio_sound.audio_data.size)
         
-        # Remplir de zéros si le bloc est trop court (fin du clip)
-        if clip_data.size < num_samples:
-            padding_size = num_samples - clip_data.size
-            clip_data = np.pad(clip_data, (0, padding_size), 'constant')
-            
-        return clip_data
+        return self.audio_sound.audio_data[start:end]
 
     #----------------------------------------
+
+    def _update_duration(self):
+        """
+        Met à jour la longueur totale du clip en frames.
+        """
+        if self.audio_sound is not None:
+            self.len_frames = self.audio_sound.length_frames - self.offset_frames
+
+    #----------------------------------------
+
 
     def __str__(self):
         """
