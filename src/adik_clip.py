@@ -104,16 +104,9 @@ class AdikClip:
 
     #----------------------------------------
 
-
     def __str__(self):
-        """
-        Représentation en chaîne de caractères de l'objet AdikClip.
-        """
-        sound_name = f"'{self.audio_sound.name}'" if self.audio_sound else "None"
-        return (f"AdikClip(ID={self.id}, Name='{self.name}', "
-                f"Source={sound_name}, "
-                f"Start={self.start_frame} frames, End={self.end_frame} frames, "
-                f"Length={self.len_frames} frames)")
+        return (f"AdikClip(Name='{self.name}', Start={self.start_frame}, "
+                f"Length={self.len_frames}, Sound='{self.audio_sound.name if self.audio_sound else 'None'}')")
 
     #----------------------------------------
     
