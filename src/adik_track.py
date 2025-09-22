@@ -151,7 +151,6 @@ class AdikTrack:
 
     # --- Méthodes de lecture et de traitement audio ---
 
-    # '''
     def get_audio_block(self, num_frames_to_generate: int) -> np.ndarray:
         """
         Génère un bloc audio pour la lecture de cette piste en itérant sur les clips.
@@ -221,99 +220,8 @@ class AdikTrack:
         return output_block
 
     #----------------------------------------
-    # '''
     
     # --- Autres méthodes de la classe (pas de changement) ---
-
-    '''
-    def get_audio_block_old(self, num_frames_to_generate):
-        """
-        Génère un bloc audio pour la lecture de cette piste, en tenant compte de l'offset.
-        Retourne un tableau NumPy de float32 (frames * num_channels).
-        Met à jour la position de lecture de la piste.
-        """
-        output_block = AdikSound.new_audio_data(num_frames_to_generate * self.num_channels)
-
-        if self._muted or self.audio_sound is None or self.audio_sound.length_frames == 0:
-            # Avancer la position globale même si la piste est muette ou vide
-            self.playback_position += num_frames_to_generate
-            return output_block 
-
-        # Calculer la position de lecture RELATIVE au début du son sur la timeline
-        current_frame_sound = self.playback_position 
-        
-        # Position réelle dans les données brutes du son, en tenant compte de son offset
-        start_frame_sound = current_frame_sound - self.offset_frames
-
-        # Si le début de ce bloc est avant l'offset du son sur la piste (silence avant le son)
-        if start_frame_sound < 0:
-            frames_silence = abs(start_frame_sound)
-            
-            # Si tout le bloc est avant le son (pur silence)
-            if frames_silence >= num_frames_to_generate:
-                self.playback_position += num_frames_to_generate
-                return output_block
-
-            # Une partie est silence, une partie est son
-            silence_samples = AdikSound.new_audio_data(frames_silence * self.num_channels)
-            
-            # Le reste du bloc doit être lu à partir du début du son (frame 0 du son)
-            frames_to_read = num_frames_to_generate - frames_silence
-            
-            sound_part_raw = self.audio_sound.audio_data[0 : int(frames_to_read * self.audio_sound.num_channels)].copy()
-            
-            # processed_sound_part = self._convert_channels(sound_part_raw, self.audio_sound.num_channels, self.num_channels, frames_to_read)
-            # Appel à AdikSound.convert_channels
-            processed_sound_part = AdikSound.convert_channels(sound_part_raw, self.audio_sound.num_channels, self.num_channels, frames_to_read)
-
-
-            # Compléter la partie son si elle est trop courte (fin du son atteinte)
-            if processed_sound_part.size < frames_to_read * self.num_channels:
-                padding_size = frames_to_read * self.num_channels - processed_sound_part.size
-                processed_sound_part = np.pad(processed_sound_part, (0, padding_size), 'constant')
-
-            # Concaténer le silence et le son
-            block_content = AdikSound.concat_audio_data(silence_samples, processed_sound_part)
-            
-            output_block[:] = block_content[:output_block.size]
-
-        else: # Nous sommes dans la section du son ou au-delà de sa fin
-            # Calculer les index de samples dans le buffer 1D de AdikSound
-            start_sample_idx = int(start_frame_sound * self.audio_sound.num_channels)
-            end_sample_idx = int((start_frame_sound + num_frames_to_generate) * self.audio_sound.num_channels)
-            
-            data_raw = self.audio_sound.audio_data[start_sample_idx : end_sample_idx].copy()
-
-            # processed_data = self._convert_channels(data_raw, self.audio_sound.num_channels, self.num_channels, num_frames_to_generate)
-            # Appel à AdikSound.convert_channels
-            processed_data = AdikSound.convert_channels(data_raw, self.audio_sound.num_channels, self.num_channels, num_frames_to_generate)
-
-            # Compléter avec des zéros si la fin du son est atteinte
-            if processed_data.size < num_frames_to_generate * self.num_channels:
-                padding_size = num_frames_to_generate * self.num_channels - processed_data.size
-                processed_data = np.pad(processed_data, (0, padding_size), 'constant')
-            
-            output_block[:] = processed_data
-
-        # Appliquer volume et panoramique
-        if self.volume != 1.0 or self.pan != 0.0:
-            if self.num_channels == 2:
-                reshaped_data = output_block.reshape(-1, 2)
-                gain_left = (1.0 - self.pan)
-                gain_right = (1.0 + self.pan)
-                reshaped_data[:, 0] *= (self.volume * gain_left)
-                reshaped_data[:, 1] *= (self.volume * gain_right)
-                output_block[:] = reshaped_data.flatten()
-            else:
-                output_block *= self.volume
-
-        self.playback_position += num_frames_to_generate
-        
-        return output_block
-
-    #----------------------------------------
-    '''
-
     def arrange_take(self, new_take_audio_data: np.ndarray, take_start_frame: int, take_end_frame: int, recording_mode: int, new_take_channels: int):
         """
         Arrange une nouvelle prise sur le son existant de la piste.
