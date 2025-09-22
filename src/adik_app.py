@@ -8,6 +8,7 @@
 import os, sys
 from adik_sound import AdikSound
 from adik_wave_handler import AdikWaveHandler
+from adik_clip import AdikClip
 from adik_player import AdikPlayer
 
 # --- fonctions de déboggage -- 
@@ -547,7 +548,65 @@ class AdikApp(object):
 
 
     # --- Functions diverses ---
+
+    # '''
     def load_demo(self):
+        """ Charger une nouvelle démonstration """
+        sample_rate = 44100
+        block_size = 1024
+        num_output_channels = 2
+        
+        # Créer quelques pistes et charger des sons
+        self.remove_all_tracks()
+        player = self.player
+        track1 = player.add_track("Drums")
+        track2 = player.add_track("Basse")
+        track3 = player.add_track("Synthé")
+        track4 = player.add_track("Bruit Blanc") # Nouvelle piste
+
+        # --- Utilisation des nouvelles fonctions de génération ---
+
+        # Onde sinusoïdale pour la piste 1
+        sine_sound = AdikSound.sine_wave(freq=440, dur=3, amp=0.2, sample_rate=sample_rate, num_channels=num_output_channels)
+        sine_clip = AdikClip("Sine Clip", sine_sound)
+        track1.add_clip(sine_clip)
+        self.display_message(f"Piste 'Drums' chargée avec une onde sinus de {sine_sound.name}", on_status_bar=True)
+
+        # Onde carrée pour la piste 2 (Basse)
+        square_sound = AdikSound.square_wave(freq=220, dur=2, amp=0.1, sample_rate=sample_rate, num_channels=num_output_channels, duty_cycle=0.6)
+        square_clip = AdikClip("Square Clip", square_sound)
+        track2.add_clip(square_clip)
+        self.display_message(f"Piste 'Basse' chargée avec une onde carrée de {square_sound.name}", on_status_bar=True)
+
+        # Bruit blanc pour la piste 3 (Synthé)
+        noise_sound = AdikSound.white_noise(dur=5, amp=0.1, sample_rate=sample_rate, num_channels=num_output_channels)
+        noise_clip = AdikClip("Noise Clip", noise_sound)
+        track3.add_clip(noise_clip)
+        self.display_message(f"Piste 'Synthé' chargée avec du {noise_sound.name}", on_status_bar=True)
+
+        file_name1 = "/home/com/audiotest/rhodes.wav" 
+        if not os.path.exists(file_name1):
+            print(f"Erreur: le fichier '{file_name1}' n'existe pas.")
+            return
+
+        loaded_sound = AdikWaveHandler.load_wav(file_name1)
+        if loaded_sound:
+            loaded_clip = AdikClip("Rhodes Clip", loaded_sound)
+            track4.add_clip(loaded_clip)
+            track4.volume = 0.2
+            self.display_message(f"Piste 'Bruit Blanc' chargée avec le fichier '{file_name1}'", on_status_bar=True)
+        else:
+            print(f"Erreur: Impossible de charger '{file_name1}' pour les pistes.")
+            return # Quitter si le son ne peut pas être chargé
+        
+        self.player._update_params()
+        self.player._start_engine()
+
+    #----------------------------------------
+    # '''
+
+    '''
+    def load_demo_old(self):
         """ Charger une nouvelle démonstration """
         sample_rate = 44100
         block_size = 1024
@@ -592,7 +651,9 @@ class AdikApp(object):
         
         self.player._update_params()
         self.player._start_engine()
+
     #----------------------------------------
+    '''
 
  
 #========================================

@@ -65,9 +65,9 @@ class AdikTrack:
         en fonction de la taille de ses données audio.
         Cette fonction est essentielle pour les opérations d'édition.
         """
-        if self.audio_sound is not None:
-            self.length_frames = self.audio_sound.length_frames
-            self.length_seconds = self.audio_sound.length_seconds
+        if self.current_clip and self.current_clip.audio_sound:
+            self.length_frames = self.current_clip.audio_sound.length_frames
+            self.length_seconds = self.current_clip.audio_sound.length_seconds
         else:
             self.length_frames = 0
             self.length_seconds = 0.0
@@ -78,7 +78,10 @@ class AdikTrack:
     
     def get_audio_sound(self):
         """ Retourne l'objet AdikSound """
-        return self.audio_sound
+        if self.current_clip:
+            return self.current_clip.audio_sound
+
+        return 
 
     #----------------------------------------
 
@@ -106,9 +109,10 @@ class AdikTrack:
                 sample_rate=sound.sample_rate,
                 num_channels=self.num_channels
             )
-            self.audio_sound = converted_sound
+            if self.current_clip:
+                self.current_clip.audio_sound = converted_sound
         else:
-            self.audio_sound = sound
+            self.current_clip.audio_sound = sound
             
         self.offset_frames = offset_frames
         self._update_duration()
@@ -117,33 +121,37 @@ class AdikTrack:
     #----------------------------------------
 
     def get_audio_data(self):
-        if self.audio_sound is not None:
-            return self.audio_sound.audio_data
+        if self.current_clip and self.current_clip.audio_sound:
+            return self.current_clip.audio_sound.audio_data
 
         return
 
     #----------------------------------------
 
     def set_audio_data(self, audio_data):
-        if self.audio_sound is not None:
-            self.audio_sound.set_audio_data(audio_data)
+        if self.current_clip and self.current_clip.audio_sound:
+            self.current_clip.audio_sound.set_audio_data(audio_data)
             self._update_duration()
 
     #----------------------------------------
-    # --- Méthodes de gestion des clips ---
 
+    # --- Méthodes de gestion des clips ---
     def add_clip(self, clip: AdikClip):
         """
         Ajoute un nouveau clip à la liste des clips de la piste.
         """
         self.clip_list.append(clip)
         self.clip_list.sort(key=lambda c: c.start_frame) # Garder les clips triés par leur position de départ
+        if not self.current_clip:
+            self.current_clip = self.clip_list[0]
+            self.audio_sound = self.current_clip.audio_sound
         print(f"Clip '{clip.name}' ajouté à la piste '{self.name}'.")
 
     #----------------------------------------
 
     # --- Méthodes de lecture et de traitement audio ---
 
+    # '''
     def get_audio_block(self, num_frames_to_generate: int) -> np.ndarray:
         """
         Génère un bloc audio pour la lecture de cette piste en itérant sur les clips.
@@ -213,7 +221,8 @@ class AdikTrack:
         return output_block
 
     #----------------------------------------
-
+    # '''
+    
     # --- Autres méthodes de la classe (pas de changement) ---
 
     '''

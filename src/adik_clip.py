@@ -23,7 +23,7 @@ class AdikClip:
         
         # Position de départ et de fin du clip en frames sur la timeline de la piste.
         self.start_frame = start_frame
-        self.end_frame = end_frame
+        self.end_frame = 22050
         self.offset_frames = offset_frames  # Décalage de l'audio source, en frames
         # Longueur du clip en frames.
         self.len_frames = self.end_frame - self.start_frame
