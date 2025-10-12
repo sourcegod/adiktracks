@@ -13,6 +13,7 @@ from adik_metronome import AdikMetronome
 from adik_track_edit import AdikTrackEdit # Import de la nouvelle classe
 from adik_loop import AdikLoop # Import de la nouvelle classe
 from adik_transport import AdikTransport
+from adik_pattern import AdikPattern # NOUVEL IMPORT
 
 def beep():
     print("\a")
@@ -28,9 +29,16 @@ class AdikPlayer:
 
         self.mixer = AdikMixer(self.sample_rate, self.num_output_channels)
 
-        self.track_list = [] # Liste des objets AdikTrack
+        # self.track_list = [] # Liste des objets AdikTrack
+        self.pattern_list = [] # Liste des objets AdikPattern
+        self.current_pattern_idx = -1 # Index du pattern actuellement sélectionné
+        
+        # Crée un pattern par défaut pour initialiser le projet
+        self.add_pattern("Default")
+        
         self.selected_track_idx = -1 # Index de la piste sélectionnée
         self.track_edit = AdikTrackEdit(self) # Instanciation de la classe d'édition
+
         self.loop_manager = AdikLoop(self)
         self.transport = AdikTransport(self)
         # --- Variables du métronome ---
@@ -56,6 +64,41 @@ class AdikPlayer:
     #----------------------------------------
 
     # --- Gestion des Pistes ---
+    @property
+    def track_list(self):
+        """
+        GETTER: Accesseur pour obtenir la liste des pistes du Pattern actuellement sélectionné.
+        """
+        current_pattern = self.get_current_pattern()
+        if current_pattern:
+            return current_pattern.track_list
+        return []
+       
+    #----------------------------------------
+
+    @track_list.setter
+    def track_list(self, new_track_list: list):
+        """
+        SETTER: Permet de réinitialiser la liste des pistes du Pattern actif (utilisé par AdikTrackEdit).
+        """
+        current_pattern = self.get_current_pattern()
+        if current_pattern:
+            # S'assure que les éléments sont bien des instances de AdikTrack
+            if all(isinstance(track, AdikTrack) for track in new_track_list):
+                current_pattern.track_list = new_track_list
+                # Met à jour la sélection de piste pour éviter un index hors limites
+                current_pattern.selected_track_idx = max(-1, len(new_track_list) - 1)
+                self.selected_track_idx = current_pattern.selected_track_idx
+                self._update_total_duration_cache() # Mise à jour de la durée du projet
+                print(f"Liste de pistes du Pattern '{current_pattern.name}' réinitialisée.")
+            else:
+                print("Erreur Setter: La nouvelle liste doit contenir uniquement des instances de AdikTrack.")
+        else:
+            print("Erreur Setter: Impossible de définir la liste, aucun Pattern n'est actif.")
+            
+    #----------------------------------------
+
+ 
     # Fonctions déléguées à AdikTrackEdit
     def select_track(self, track_idx):
         return self.track_edit.select_track(track_idx)
@@ -134,7 +177,49 @@ class AdikPlayer:
         self.loop_manager.update_params()
 
     #----------------------------------------
-    
+
+    # --- Gestion des Patterns ---
+    def get_current_pattern(self):
+        """Retourne le Pattern actuellement sélectionné."""
+        if 0 <= self.current_pattern_idx < len(self.pattern_list):
+            return self.pattern_list[self.current_pattern_idx]
+        return None
+        
+    #----------------------------------------
+
+    def add_pattern(self, name=None):
+        """
+        Ajoute un nouveau Pattern au projet.
+        """
+        if name is None:
+            name = f"Pattern {len(self.pattern_list) + 1}"
+            
+        new_pattern = AdikPattern(self, name=name)
+        self.pattern_list.append(new_pattern)
+        self.current_pattern_idx = len(self.pattern_list) - 1
+        
+        # Optionnel : Assurer qu'il y a au moins une piste dans le nouveau pattern
+        # new_pattern.add_track() 
+        
+        return new_pattern
+
+    #----------------------------------------
+
+    def select_pattern(self, pattern_idx: int):
+        """
+        Sélectionne le Pattern actif par son index.
+        """
+        if 0 <= pattern_idx < len(self.pattern_list):
+            self.current_pattern_idx = pattern_idx
+            # Mise à jour de l'index de la piste sélectionnée pour correspondre au nouveau pattern
+            self.selected_track_idx = self.pattern_list[pattern_idx].selected_track_idx
+            print(f"Pattern sélectionné: '{self.pattern_list[pattern_idx].name}'")
+            return True
+        print(f"Erreur: Pattern index {pattern_idx} est invalide.")
+        return False
+        
+    #----------------------------------------    
+
     # --- Transport (Play/Pause/Stop) ---
     # Fonctions déléguées à AdikTransport
     def is_playing(self):

@@ -3,6 +3,7 @@
     # File: adik_tui.py
     User Interface for AdikPlayer based on curses library
     Date: Fri, 15/08/2025
+
     Author Coolbrother
 """
 
