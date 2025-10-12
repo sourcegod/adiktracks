@@ -2,3 +2,5 @@
 __pycache__/
 # build directory
 build/
+# temp directory
+temp/
