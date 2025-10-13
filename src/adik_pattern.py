@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-# adik_pattern.py
+"""
+    # adik_pattern.py
+    Pattern object management
+    Date: Mon, 13/10/2025
+    Author: Coolbrother
+"""
 
 from adik_track import AdikTrack # Assurez-vous d'importer la classe AdikTrack
 
@@ -29,8 +34,9 @@ class AdikPattern:
         
         print(f"AdikPattern '{self.name}' créé.")
 
+    #----------------------------------------    
+
     # --- Méthodes pour gérer les pistes à l'intérieur de ce Pattern ---
-    
     def add_track(self, name=None):
         """
         Ajoute une nouvelle piste à ce Pattern.
@@ -58,12 +64,16 @@ class AdikPattern:
         self.selected_track_idx = len(self.track_list) - 1 # Sélectionne la nouvelle piste
         print(f"Piste '{name}' ajoutée à Pattern '{self.name}'.")
         return new_track
+
+    #----------------------------------------    
         
     def get_tracks(self):
         """
         Retourne la liste des pistes de ce Pattern.
         """
         return self.track_list
+
+    #----------------------------------------    
         
     def get_track_by_index(self, index: int):
         """
@@ -72,6 +82,8 @@ class AdikPattern:
         if 0 <= index < len(self.track_list):
             return self.track_list[index]
         return None
+
+    #----------------------------------------    
 
     def delete_track(self, track_idx: int):
         """
@@ -83,6 +95,8 @@ class AdikPattern:
             if self.selected_track_idx >= track_idx:
                 self.selected_track_idx = max(-1, self.selected_track_idx - 1)
             print(f"Piste '{name}' supprimée de Pattern '{self.name}'.")
+
+    #----------------------------------------    
         
     def get_selected_track(self):
         """
@@ -90,8 +104,9 @@ class AdikPattern:
         """
         return self.get_track_by_index(self.selected_track_idx)
 
+    #----------------------------------------    
+
     # --- Propriétés de temps (pour la lecture) ---
-    
     @property
     def length_frames(self):
         """
@@ -104,5 +119,7 @@ class AdikPattern:
         # La longueur est la longueur en bars multipliée par les frames par bar.
         return self.length_bars * frames_per_bar
         
+    #----------------------------------------    
+
     # Vous pouvez ajouter ici la logique de mixage/lecture pour le callback audio.
     # Par exemple, une méthode 'render_audio_block(start_frame, frame_count)'
