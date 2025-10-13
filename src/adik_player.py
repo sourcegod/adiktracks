@@ -13,10 +13,18 @@ from adik_metronome import AdikMetronome
 from adik_track_edit import AdikTrackEdit # Import de la nouvelle classe
 from adik_loop import AdikLoop # Import de la nouvelle classe
 from adik_transport import AdikTransport
-from adik_pattern import AdikPattern # NOUVEL IMPORT
+from adik_pattern import AdikPattern
+from adik_song import AdikSong
 
 def beep():
     print("\a")
+
+#----------------------------------------
+
+# Définition des modes de lecture (simplement des constantes de classe)
+class PlaybackMode:
+    PATTERN = 0  # Jouer le pattern actif en boucle
+    SONG = 1     # Jouer la séquence d'événements de la classe AdikSong
 
 #----------------------------------------
 
@@ -35,7 +43,19 @@ class AdikPlayer:
         
         # Crée un pattern par défaut pour initialiser le projet
         self.add_pattern("Default")
+        # Le Song gère l'arrangement
+        self.song = AdikSong(self) # NOUVEAU: Instance de la classe AdikSong
         
+        # AJOUTER UNE PREMIÈRE ENTRÉE D'ARRANGEMENT PAR DÉFAUT:
+        if self.pattern_list:
+            self.song.add_entry(pattern_index=0, repetitions=2)
+
+        # NOUVEAU: Mode de lecture actuel
+        self.playback_mode = PlaybackMode.PATTERN # Démarrer en mode Pattern par défaut
+        
+        # La timeline de l'arrangement est désormais gérée par l'objet Song
+
+       
         self.selected_track_idx = -1 # Index de la piste sélectionnée
         self.track_edit = AdikTrackEdit(self) # Instanciation de la classe d'édition
 
@@ -61,6 +81,19 @@ class AdikPlayer:
         self.time_signature = (4, 4) # (nombre de battements par mesure, valeur de la note par battement)
         
         print(f"AdikPlayer initialisé (SR: {self.sample_rate}, Block Size: {self.block_size}, Out Channels: {self.num_output_channels}, In Channels: {self.num_input_channels})")
+    #----------------------------------------
+    # Toggle le mode de lecture (méthode de commodité)
+    def toggle_playback_mode(self):
+        """
+        Passe du mode PATTERN au mode SONG, et inversement.
+        """
+        if self.playback_mode == PlaybackMode.PATTERN:
+            self.playback_mode = PlaybackMode.SONG
+            print("Mode de lecture basculé sur SONG_MODE.")
+        else:
+            self.playback_mode = PlaybackMode.PATTERN
+            print("Mode de lecture basculé sur PATTERN_MODE.")
+
     #----------------------------------------
 
     # --- Gestion des Pistes ---
