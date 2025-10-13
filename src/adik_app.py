@@ -549,58 +549,106 @@ class AdikApp(object):
 
     # --- Functions diverses ---
     def load_demo(self):
-        """ Charger une nouvelle démonstration """
+        """ Charger une nouvelle démonstration avec des Patterns et des Pistes. """
         sample_rate = 44100
-        block_size = 1024
         num_output_channels = 2
-        
-        # Créer quelques pistes et charger des sons
-        self.remove_all_tracks()
         player = self.player
-        track1 = player.add_track("Drums")
-        track2 = player.add_track("Basse")
-        track3 = player.add_track("Synthé")
-        track4 = player.add_track("Bruit Blanc") # Nouvelle piste
 
-        # --- Utilisation des nouvelles fonctions de génération ---
+        # 1. Nettoyage initial : Retire tous les patterns et pistes existants
+        # On assume une méthode de nettoyage (à ajouter si elle n'existe pas encore)
+        if hasattr(player, 'pattern_list'):
+            player.pattern_list = []
+            player.current_pattern_idx = -1
+        else:
+            # Si l'architecture est encore ancienne, utilise la méthode existante
+            self.remove_all_tracks() 
 
-        # Onde sinusoïdale pour la piste 1
-        sine_sound = AdikSound.sine_wave(freq=440, dur=3, amp=0.2, sample_rate=sample_rate, num_channels=num_output_channels)
-        sine_clip = AdikClip("Sine Clip", sine_sound)
-        track1.add_clip(sine_clip)
-        self.display_message(f"Piste 'Drums' chargée avec une onde sinus de {sine_sound.name}", on_status_bar=True)
+        # --- Définition des sons de base ---
 
-        # Onde carrée pour la piste 2 (Basse)
-        square_sound = AdikSound.square_wave(freq=220, dur=2, amp=0.1, sample_rate=sample_rate, num_channels=num_output_channels, duty_cycle=0.6)
-        square_clip = AdikClip("Square Clip", square_sound)
-        track2.add_clip(square_clip)
-        self.display_message(f"Piste 'Basse' chargée avec une onde carrée de {square_sound.name}", on_status_bar=True)
+        # Sons utilisés dans les clips
+        sine_sound = AdikSound.sine_wave(freq=440, dur=4, amp=0.2, sample_rate=sample_rate, num_channels=num_output_channels)
+        square_sound = AdikSound.square_wave(freq=220, dur=4, amp=0.1, sample_rate=sample_rate, num_channels=num_output_channels, duty_cycle=0.6)
+        noise_sound = AdikSound.white_noise(dur=4, amp=0.1, sample_rate=sample_rate, num_channels=num_output_channels)
 
-        # Bruit blanc pour la piste 3 (Synthé)
-        noise_sound = AdikSound.white_noise(dur=5, amp=0.1, sample_rate=sample_rate, num_channels=num_output_channels)
-        noise_clip = AdikClip("Noise Clip", noise_sound)
-        track3.add_clip(noise_clip)
-        self.display_message(f"Piste 'Synthé' chargée avec du {noise_sound.name}", on_status_bar=True)
+        # -----------------------------------------------------------
+        # I. Création du Pattern A : La section principale du morceau
+        # -----------------------------------------------------------
+        pattern_a = player.add_pattern("Pattern A - Groove")
+        player.select_pattern(0) # S'assurer qu'il est sélectionné
+        
+        self.display_message(f"Création de '{pattern_a.name}' et ajout des pistes...", on_status_bar=True)
+
+        # Création des pistes
+        track_drums_a = pattern_a.add_track("Drums A")
+        track_bass_a = pattern_a.add_track("Basse A")
+        track_synth_a = pattern_a.add_track("Synthé A")
+
+        # Clips spécifiques au Pattern A
+        # Les clips sont des boucles de 4 secondes pour simuler 4 mesures à 120 BPM
+        clip_drums_a = AdikClip("Drums Clip (Sine)", sine_sound)
+        clip_bass_a = AdikClip("Bass Clip (Square)", square_sound)
+        clip_synth_a = AdikClip("Synth Clip (Noise)", noise_sound)
+
+        track_drums_a.add_clip(clip_drums_a)
+        track_bass_a.add_clip(clip_bass_a)
+        track_synth_a.add_clip(clip_synth_a)
+
+        # -----------------------------------------------------------
+        # II. Création du Pattern B : L'Intro/Break plus simple
+        # -----------------------------------------------------------
+        pattern_b = player.add_pattern("Pattern B - Intro")
+        player.select_pattern(1) # Sélectionne le Pattern B pour y ajouter des pistes
+        
+        self.display_message(f"Création de '{pattern_b.name}' et ajout des pistes...", on_status_bar=True)
+        
+        # Le Pattern B a des pistes différentes ou des versions différentes
+        track_drums_b = pattern_b.add_track("Drums B")
+        track_pad_b = pattern_b.add_track("Pad B") # Nouvelle piste
+
+        # Clips spécifiques au Pattern B (seulement la basse et le synthé)
+        clip_drums_b = AdikClip("Drums Clip (Square)", square_sound) # On échange les sons
+        clip_pad_b = AdikClip("Pad Clip (Sine)", sine_sound)
+
+        track_drums_b.add_clip(clip_drums_b)
+        track_pad_b.add_clip(clip_pad_b)
+        track_pad_b.volume = 0.5
+
+
+        # --- Chargement d'un fichier audio et ajout à un Pattern ---
 
         file_name1 = "/home/com/audiotest/rhodes.wav" 
-        if not os.path.exists(file_name1):
-            print(f"Erreur: le fichier '{file_name1}' n'existe pas.")
-            return
-
-        loaded_sound = AdikWaveHandler.load_wav(file_name1)
-        if loaded_sound:
-            loaded_clip = AdikClip("Rhodes Clip", loaded_sound)
-            track4.add_clip(loaded_clip)
-            track4.volume = 0.2
-            self.display_message(f"Piste 'Bruit Blanc' chargée avec le fichier '{file_name1}'", on_status_bar=True)
+        if os.path.exists(file_name1):
+            loaded_sound = AdikWaveHandler.load_wav(file_name1)
+            if loaded_sound:
+                loaded_clip = AdikClip("Rhodes Clip", loaded_sound)
+                
+                # Ajout de la piste de Rhodes au Pattern A (on revient sur Pattern A)
+                player.select_pattern(0) 
+                track_rhodes_a = player.add_track("Rhodes A")
+                track_rhodes_a.add_clip(loaded_clip)
+                track_rhodes_a.volume = 0.2
+                self.display_message(f"Piste 'Rhodes' chargée dans Pattern A.", on_status_bar=True)
+            else:
+                print(f"Erreur: Impossible de charger '{file_name1}'.")
         else:
-            print(f"Erreur: Impossible de charger '{file_name1}' pour les pistes.")
-            return # Quitter si le son ne peut pas être chargé
-        
-        self.player._update_params()
-        self.player._start_engine()
+            print(f"Avertissement: Le fichier '{file_name1}' n'existe pas. Piste Rhodes ignorée.")
+            
+        # -----------------------------------------------------------
+        # III. Finalisation
+        # -----------------------------------------------------------
 
-    #----------------------------------------
+        # Revenir au Pattern A pour que ce soit le Pattern actif au lancement de la démo
+        player.select_pattern(0) 
+        
+        # Mise à jour des caches de durée (utilise maintenant les clips des pistes du Pattern A)
+        player._update_params()
+        
+        # Démarrer le moteur audio
+        player._start_engine()
+        
+        self.display_message("Démonstration chargée. Pattern A (Groove) est actif.", on_status_bar=True)
+
+    #----------------------------------------    
 
 #========================================
 

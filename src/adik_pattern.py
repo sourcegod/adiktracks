@@ -34,16 +34,31 @@ class AdikPattern:
     def add_track(self, name=None):
         """
         Ajoute une nouvelle piste à ce Pattern.
+        
+        ATTENTION : Adapte les arguments passés à AdikTrack en fonction de
+        sa signature: __init__(self, name=None, sample_rate=44100, num_channels=2)
         """
         if name is None:
+            # Génère un nom par défaut si non fourni
             name = f"Track {len(self.track_list) + 1}"
             
-        new_track = AdikTrack(self.player, name=name)
+        # 1. Extrait les paramètres du Player (qui sont les paramètres du système)
+        sample_rate = self.player.sample_rate
+        num_output_channels = self.player.num_output_channels
+
+        # 2. Instancie AdikTrack en utilisant les arguments nommés corrects
+        # L'objet 'self.player' n'est PAS passé directement à AdikTrack.
+        new_track = AdikTrack(
+            name=name, 
+            sample_rate=sample_rate, 
+            num_channels=num_output_channels
+        )
+        
         self.track_list.append(new_track)
         self.selected_track_idx = len(self.track_list) - 1 # Sélectionne la nouvelle piste
         print(f"Piste '{name}' ajoutée à Pattern '{self.name}'.")
         return new_track
-
+        
     def get_tracks(self):
         """
         Retourne la liste des pistes de ce Pattern.
