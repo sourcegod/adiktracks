@@ -13,7 +13,6 @@ from adik_sound import AdikSound
 from adik_wave_handler import AdikWaveHandler
 from adik_track import AdikTrack
 
-
 class AdikTransport:
     """
     Gère les fonctions de transport (lecture, enregistrement, arrêt) pour le lecteur.
@@ -96,13 +95,100 @@ class AdikTransport:
             self._playing = False
             if self._recording:
                 self._finish_recording()
+
+            # --- ADAPTATION AU PLAYBACK MODE ---
+            # Si nous sommes en mode SONG, la position est remise à 0 (début du Song)
+            # Si nous sommes en mode PATTERN, la position est remise au début du Pattern actif
+            # Note: Si PlaybackMode est défini dans AdikPlayer (Player.PlaybackMode)
+            from adik_player import PlaybackMode
+         
+           
+            if self.player.playback_mode == PlaybackMode.SONG:
+                # En mode Song, on revient au début du Song (Frame 0)
+                self.player.current_playback_frame = 0
+                print("Position réinitialisée au début du Song (Frame 0).")
             
+            elif self.player.playback_mode == PlaybackMode.PATTERN:
+                # En mode Pattern, on revient au début du Pattern actif (qui est souvent la Frame 0 pour le player, 
+                # mais dans une vision plus avancée, ce serait le début du Pattern dans le contexte du Song).
+                # Ici, on simplifie en revenant à la Frame 0, car les pistes sont lues relative à 0
+                # dans la structure actuelle. 
+                # (Si les Patterns avaient des offsets dans le Song, la logique serait plus complexe)
+                self.player.current_playback_frame = 0 # Retour au début du pattern actif / projet.
+                print("Position réinitialisée (Mode Pattern).")
+                       # Réinitialiser la position de toutes les pistes
+            for track in self.player.track_list:
+                # Note: track_list est la propriété qui renvoie les pistes du Pattern actif
+                track.reset_playback_position()
+            
+            
+            """
             self.player.current_playback_frame = 0
             for track in self.player.track_list:
                 track.reset_playback_position()
+            """
             
         if not self._playing and not self._recording and self.player._is_engine_running():
             self.player._stop_engine()
+
+    #----------------------------------------
+
+# Dans AdikTransport, après 'stop()'
+
+    #----------------------------------------
+    
+    def get_next_playback_frame(self, current_frame, block_size):
+        """
+        Détermine la prochaine position de lecture en tenant compte du PlaybackMode,
+        de la boucle (si active), et de la fin du Song/Pattern.
+        Cette méthode sera appelée par AdikAudioEngine.
+        """
+        # Note: L'incrémentation de base est gérée dans l'Engine, ici on gère le saut/retour au début
+        
+        next_frame = current_frame + block_size
+        
+        # 1. Vérification de la Boucle (prioritaire)
+        if self.player.is_looping():
+            # La logique de boucle (AdikLoop) doit prendre le dessus
+            left = self.player.loop_manager.get_loop_start_frame()
+            right = self.player.loop_manager.get_loop_end_frame()
+            
+            if right > left and next_frame >= right:
+                # Revenir au début de la boucle
+                return left
+        
+        # Note: Si PlaybackMode est défini dans AdikPlayer (Player.PlaybackMode)
+        from adik_player import PlaybackMode 
+
+        # 2. Vérification de la Fin de Lecture
+        if self.player.playback_mode == PlaybackMode.SONG:
+            # Mode Song: La durée totale est la durée du Song
+            max_frames = self.player.song.total_duration_frames
+            
+            if max_frames > 0 and next_frame >= max_frames:
+                # Fin du Song. S'arrêter.
+                # L'Engine doit savoir que le flux doit être arrêté. 
+                # On retourne -1 ou une valeur spéciale pour indiquer l'arrêt
+                return -1 # L'AudioEngine devra interpréter -1 comme un signal d'arrêt
+                
+        elif self.player.playback_mode == PlaybackMode.PATTERN:
+            # Mode Pattern: Le Pattern actif est en boucle.
+            current_pattern = self.player.get_current_pattern()
+            if current_pattern:
+                # La durée du Pattern est la limite de la boucle
+                max_frames = self.player.bar_to_frame(current_pattern.length_bars)
+                
+                if max_frames > 0 and next_frame >= max_frames:
+                    # Revenir au début du Pattern (Frame 0 du Player dans ce contexte)
+                    return 0
+        
+        # 3. Mode standard (si la fin du projet est atteinte sans mode Song/Pattern défini)
+        max_duration = self.player.total_duration_frames
+        if max_duration > 0 and next_frame >= max_duration:
+            # S'il n'y a pas de Song/Pattern mode actif pour boucler, on arrête à la fin du projet
+            return -1 # Signal d'arrêt
+
+        return next_frame
 
     #----------------------------------------
 
