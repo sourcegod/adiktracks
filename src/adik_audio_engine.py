@@ -272,6 +272,16 @@ class AdikAudioEngine:
                         should_mix_track = False
 
                     if should_mix_track:
+                        # L'appel à mix_sound_data gère la lecture des clips dans le pattern actif
+                        track.mix_sound_data(output_buffer, num_frames)
+                    else:
+                        # Même si on ne mixe pas (mute/solo/record), on doit avancer la position de la piste
+                        # pour maintenir la synchronisation.
+                        track.get_audio_block(num_frames)
+                
+
+                    """
+                    if should_mix_track:
                         if track.audio_sound and track.audio_sound.length_frames > 0:
                             try:
                                 track.mix_sound_data(output_buffer, num_frames)
@@ -279,9 +289,50 @@ class AdikAudioEngine:
                                 print(f"Erreur lors de l'appel de mix_sound_data pour la piste {track.name}: {e}")
                         else:
                             track.get_audio_block(num_frames)
+                    
                     else: # not should_mix_track
+                        # Même si on ne mixe pas (mute/solo/record), on doit avancer la position de la piste
+                        # pour maintenir la synchronisation.
                         track.get_audio_block(num_frames)
+                    """
                 
+            # ----------------------------------------------------
+            # 5. Gestion Avancée du Transport et du Bouclage
+            # ----------------------------------------------------
+            
+            # Déterminer la prochaine position de lecture en fonction du PlaybackMode (Pattern ou Song)
+            next_player_frame = self._transport.get_next_playback_frame(
+                self._player.current_playback_frame, 
+                num_frames
+            )
+            
+            # Si get_next_playback_frame retourne -1, cela signifie qu'il faut s'arrêter (fin de Song, pas de boucle)
+            if next_player_frame == -1:
+                print("Player: Fin du morceau/Pattern atteint. Arrêt automatique.")
+                self._transport.stop() # Utiliser la méthode stop du transport pour tout arrêter proprement
+                # Ne rien faire d'autre, le prochain callback verra _playing=False
+                return [] # Retourner un tableau vide (ou le signal d'arrêt sounddevice si utilisé)
+
+            # Si la position a sauté (next_player_frame < current_frame), c'est une boucle ou un redémarrage
+            elif next_player_frame < (self._player.current_playback_frame + num_frames):
+                # C'est un saut (boucle ou retour au début du pattern/song)
+                print(f"Player: Saut/Boucle vers la frame {next_player_frame}.")
+                
+                # Mettre à jour la position globale du Player
+                self._player.current_playback_frame = next_player_frame
+                
+                # Synchroniser le métronome
+                self._metronome.playback_frame = next_player_frame
+                
+                # Synchroniser la position de chaque piste (important pour les clips)
+                for track in self._player.track_list:
+                    track.playback_position = next_player_frame
+            
+            else:
+                # Lecture normale : avancer la position du player
+                self._player.current_playback_frame = next_player_frame
+            
+
                 # Mettre à jour la position du player et du métronome uniquement en mode lecture
                 self._player.current_playback_frame += num_frames
                 # self._metronome.playback_frame = self._player.current_playback_frame
@@ -307,12 +358,12 @@ class AdikAudioEngine:
                         print("Player: Toutes les pistes ont fini de jouer. Arrêt automatique.")
                         self._transport._playing = False
 
-            # 5. Mixage du son du métronome (si un clic est en cours)
+            # 6. Mixage du son du métronome (si un clic est en cours)
             if self._metronome.is_click_playing():
                 self._metronome.mix_click_data(output_buffer, num_frames)
 
             
-            # Copie le buffer de sortie vers le buffer sounddevice
+            # 7. Copie du buffer de sortie vers le buffer sounddevice
             outdata[:] = output_buffer.reshape((num_frames, self.num_output_channels))
 
     #----------------------------------------
