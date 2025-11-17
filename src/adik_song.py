@@ -21,14 +21,13 @@ class SongEntry:
         self.pattern_length_bars = max(1, pattern_length_bars) # Durée du pattern de base
         self.start_bar = start_bar
         self._id = str(uuid.uuid4())
-        self.repetitions_done = 0
 
     #--------------------------------------------------------------------------
 
     @property
     def total_bars(self) -> int:
         """La durée totale de cet événement d'arrangement en mesures (calculée)."""
-        return self.repetitions * self.pattern_length_bars
+        return self.pattern_length_bars
 
     #--------------------------------------------------------------------------
 
@@ -46,6 +45,7 @@ class SongEntry:
     #--------------------------------------------------------------------------
 
 #--------------------------------------------------------------------------
+#========================================
 
 # --- Classe Principale : AdikSong (Le Mode Song/Arrangement) ---
 # --------------------------------------------------------------------------
@@ -101,37 +101,46 @@ class AdikSong:
 
     def add_entry(self, pattern_index: int, repetitions: int = 1):
         """
-        Ajoute un Pattern à la fin de la séquence d'événements du Song.
+        Ajoute un Pattern à la fin de la séquence d'événements du Song,
+        en créant une entrée (SongEntry) pour chaque répétition demandée.
         
         :param pattern_index: Index du Pattern à ajouter.
-        :param repetitions: Nombre de fois que ce Pattern doit être joué.
-        :return: Le nouvel SongEntry créé.
+        :param repetitions: Nombre de fois que ce Pattern doit être joué séquentiellement.
+        :return: Le dernier SongEntry créé (ou None en cas d'erreur).
         """
         # 1. Validation de l'index du Pattern
         if pattern_index < 0 or pattern_index >= len(self.player.pattern_list):
-             print(f"Erreur Song: L'index de pattern {pattern_index} est invalide.")
-             return None
-             
+            print(f"Erreur Song: L'index de pattern {pattern_index} est invalide.")
+            return None
+        
         # 2. Récupération de la durée du Pattern
         pattern = self.player.pattern_list[pattern_index]
-        pattern_length_bars = pattern.length_bars # Assurez-vous que AdikPattern a bien cet attribut
-             
-        # 3. Calcul de la mesure de début et création de l'entrée
-        start_bar = self.total_bars 
+        pattern_length_bars = pattern.length_bars 
+
+        last_entry = None
+        initial_start_bar = self.total_bars
         
-        new_entry = SongEntry(
-            pattern_index=pattern_index,
-            repetitions=repetitions,
-            pattern_length_bars=pattern_length_bars,
-            start_bar=start_bar
-        )
-        self.event_list.append(new_entry)
+        # 3. Boucle sur le nombre de répétitions
+        for i in range(repetitions):
+            # La nouvelle mesure de début est toujours la durée totale actuelle
+            start_bar = self.total_bars  
+            
+            # Création d'une nouvelle entrée représentant UNE SEULE lecture du pattern
+            new_entry = SongEntry(
+                pattern_index=pattern_index,
+                repetitions=1, # <--- TOUJOURS 1 MAINTENANT
+                pattern_length_bars=pattern_length_bars,
+                start_bar=start_bar
+                # La variable repetitions_done n'est plus utile ici
+            )
+            self.event_list.append(new_entry)
+            last_entry = new_entry
+            
+        # IMPORTANT : Si on ajoute des entrées, on réinitialise l'index du Song au début
+        self.current_entry_index = 0
         
-        # IMPORTANT : Si on ajoute une entrée, on réinitialise l'index
-        self.current_entry_index = 0        
-        
-        print(f"Song: Pattern {pattern_index} ajouté {repetitions} fois (Durée: {new_entry.total_bars} bars). Début à la mesure {start_bar}.")
-        return new_entry
+        print(f"Song: Pattern {pattern_index} ajouté {repetitions} fois (Total {repetitions * pattern_length_bars} bars). Début à la mesure {initial_start_bar}.")
+        return last_entry
 
     #----------------------------------------
 
@@ -147,27 +156,21 @@ class AdikSong:
 
     #----------------------------------------
         
-    def get_pattern_and_repetition_info(self, current_bar: int) -> Optional[tuple[int, int]]:
+    def get_pattern_index(self, current_bar: int) -> Optional[int]:
         """
-        Retourne l'index du pattern actif et le numéro de répétition en cours (1-indexé).
+        Retourne l'index du pattern actif à la mesure spécifiée.
         
         :param current_bar: La mesure actuelle (0-indexée).
-        :return: Tuple (pattern_index, repetition_number) ou None.
+        :return: L'index du Pattern (int), ou None si la mesure est hors Song.
         """
+        # Utilise la méthode existante pour trouver le SongEntry actif à cette mesure
         entry = self.get_entry_at_bar(current_bar)
+        
         if entry is None:
             return None
             
-        # 1. Mesure relative à l'événement (0 pour le début de l'événement)
-        relative_bar = current_bar - entry.start_bar
-        
-        # 2. Calcul du numéro de répétition
-        repetition_number = (relative_bar // entry.pattern_length_bars) + 1
-        
-        # Le numéro de répétition doit être borné entre 1 et repetitions max
-        repetition_number = min(repetition_number, entry.repetitions)
-        
-        return entry.pattern_index, repetition_number
+        # L'attribut 'pattern_index' est directement disponible dans le SongEntry.
+        return entry.pattern_index
 
     #----------------------------------------
 
@@ -182,55 +185,34 @@ class AdikSong:
         print("Song réorganisé et start_bars recalculés.")
 
     #----------------------------------------
-        
+
     def try_move_to_next_pattern(self, player):
         """
-        Gère la fin d'un Pattern dans un Song : soit on répète, soit on passe au Pattern suivant, 
-        soit on s'arrête.
+        Passe directement à l'entrée de SongEntry suivante dans la liste.
         """
         if not self.event_list:
             return None
 
-        current_entry = self.get_current_entry()
-        
-        if current_entry is None:
-             # Si l'index est hors limite, cela signifie la fin du Song
-             return None 
-
-        # 1. Vérification de la répétition
-        if current_entry.repetitions_done < current_entry.repetitions - 1: # -1 car la 1ère lecture est la répétition 0
-            # Répéter le Pattern actuel
-            current_entry.repetitions_done += 1
-            print(f"Song: Répétition {current_entry.repetitions_done + 1}/{current_entry.repetitions} de Pattern {current_entry.pattern_index}.")
-            # Retourner 0 pour commencer la répétition à la frame 0 du Pattern
-            return 0  
-
-        # 2. Si toutes les répétitions sont faites, passer à l'entrée suivante
+        # On a atteint la fin du bloc d'un Pattern (qui ne dure qu'une seule lecture)
         next_entry_index = self.current_entry_index + 1
         
         if next_entry_index < len(self.event_list):
-            # Préparation de l'ancienne entrée avant de passer à la suivante
-            current_entry.repetitions_done = 0 
-            
-            # Mise à jour des index et sélection du nouveau Pattern
+            # 1. Mise à jour de l'index
             self.current_entry_index = next_entry_index
+            
+            # 2. Sélection du nouveau Pattern dans le Player
             new_entry = self.get_current_entry()
-            
-            # Réinitialiser la première répétition (la lecture actuelle sera la première)
-            new_entry.repetitions_done = 0 
-            
-            # Sélection du Pattern dans le Player pour charger les pistes
-            player.select_pattern(new_entry.pattern_index) 
+            player.select_pattern(new_entry.pattern_index)
             
             print(f"Song: Passage à la SongEntry {self.current_entry_index}. Nouveau Pattern Index {new_entry.pattern_index} sélectionné.")
             
             return 0  # Nouvelle frame de départ (début du nouveau Pattern)
         else:
-            # 3. Fin du Song (dernière entrée jouée)
+            # Fin du Song (dernière entrée jouée)
             # Réinitialiser l'index pour un prochain démarrage propre
             self.current_entry_index = 0
-            current_entry.repetitions_done = 0 
-            return None # Signal d'arrêt
+            
+            return None # Signal d'arrêt        
 
     #----------------------------------------
 
