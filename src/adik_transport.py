@@ -137,6 +137,84 @@ class AdikTransport:
 
     #----------------------------------------
     
+    # Dans AdikTransport
+
+    def get_next_playback_frame(self, current_frame, block_size):
+        """
+        Détermine la prochaine position de lecture en tenant compte du PlaybackMode,
+        de la boucle (si active), et de la fin du Song/Pattern.
+        """
+        from adik_player import PlaybackMode  # Assurer l'importation locale
+        
+        # ----------------------------------------------------------------------
+        # 1. Calcul initial
+        # ----------------------------------------------------------------------
+        next_frame = current_frame + block_size
+
+        # ----------------------------------------------------------------------
+        # 2. Vérification de la Boucle (prioritaire, non affectée par Song/Pattern)
+        # ----------------------------------------------------------------------
+        if self.player.is_looping():
+            left = self.player.loop_manager.get_loop_start_frame()
+            right = self.player.loop_manager.get_loop_end_frame()
+            
+            if right > left and next_frame >= right:
+                # Revenir au début de la boucle
+                return left
+
+        # ----------------------------------------------------------------------
+        # 3. Gestion du Mode de Lecture (si pas de boucle active)
+        # ----------------------------------------------------------------------
+    
+        if self.player.playback_mode == PlaybackMode.SONG:
+            
+            current_entry = self.player.song.get_current_entry() # <--- MAINTENANT CELA FONCTIONNE!
+            
+            if current_entry is None:
+                return -1 # Fin du Song
+            
+            # La limite est la durée DU PATTERN de base (pas la durée totale de l'événement SongEntry)
+            pattern_duration_frames = self.player.bar_to_frame(current_entry.pattern_length_bars)
+            
+            if pattern_duration_frames > 0 and current_frame + block_size >= pattern_duration_frames:
+                # Le bloc audio dépasse la fin du Pattern de base.
+                
+                # TENTER DE PASSER À L'ENTRÉE/PATTERN SUIVANT (répétition ou changement)
+                
+                # Le Song gère maintenant si c'est une répétition (reste au Pattern) ou un changement
+                new_start_frame = self.player.song.try_move_to_next_pattern(self.player)
+                
+                if new_start_frame is not None:
+                    # Changement réussi ou répétition (retourne 0)
+                    return new_start_frame
+                else:
+                    # Fin du Song
+                    print("Transport: Fin de Song atteinte. Arrêt.")
+                    return -1 
+                    
+                      
+        elif self.player.playback_mode == PlaybackMode.PATTERN:
+            # Mode Pattern: Le Pattern actif est en boucle.
+            current_pattern = self.player.get_current_pattern()
+            if current_pattern:
+                # La durée du Pattern est la limite de la boucle
+                max_frames = self.player.bar_to_frame(current_pattern.length_bars)
+                
+                if max_frames > 0 and next_frame >= max_frames:
+                    # Revenir au début du Pattern (Frame 0 du Player dans ce contexte)
+                    return 0
+
+        # 4. Mode standard / Fin de projet (fall-through)
+        max_duration = self.player.total_duration_frames
+        if max_duration > 0 and next_frame >= max_duration:
+            # S'il n'y a pas de mode Song/Pattern actif pour boucler, on arrête à la fin du projet
+            return -1 # Signal d'arrêt
+
+        return next_frame
+
+    #----------------------------------------
+
+    '''
     def get_next_playback_frame(self, current_frame, block_size):
         """
         Détermine la prochaine position de lecture en tenant compte du PlaybackMode,
@@ -191,6 +269,8 @@ class AdikTransport:
         return next_frame
 
     #----------------------------------------
+    '''
+
 
     def start_recording(self):
         """

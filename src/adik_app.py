@@ -9,7 +9,7 @@ import os, sys
 from adik_sound import AdikSound
 from adik_wave_handler import AdikWaveHandler
 from adik_clip import AdikClip
-from adik_player import AdikPlayer
+from adik_player import PlaybackMode, AdikPlayer
 
 # --- fonctions de déboggage -- 
 def beep():
@@ -46,7 +46,7 @@ class AdikApp(object):
     def init_app(self, sample_rate=44100, block_size=256, num_output_channels=2, num_input_channels=1):
         self.player = AdikPlayer(sample_rate, block_size, num_output_channels, num_input_channels)
         self.mixer = self.player.mixer
-        self.player._start_engine()
+        # self.player._start_engine()
         self.display_message("AdikApp initialisée.")
 
     #----------------------------------------
@@ -548,6 +548,158 @@ class AdikApp(object):
 
 
     # --- Functions diverses ---
+    
+    # '''
+    def load_demo(self):
+        """ Charger une nouvelle démonstration avec des Patterns et des Pistes. """
+        sample_rate = 44100
+        num_output_channels = 2
+        player = self.player
+
+        # 1. Nettoyage initial : Retire tous les patterns et pistes existants
+        if hasattr(player, 'pattern_list'):
+            player.pattern_list = []
+            player.current_pattern_idx = -1
+        else:
+            self.remove_all_tracks() 
+
+        # Nettoyage de l'arrangement (Song)
+        player.song.event_list = [] # Vider la liste d'événements du Song
+        player.song._recalculate_start_bars() # S'assurer que les barres sont à zéro
+
+        # --- Définition des sons de base ---
+
+        # Sons utilisés dans les clips
+        sine_sound = AdikSound.sine_wave(freq=440, dur=4, amp=0.2, sample_rate=sample_rate, num_channels=num_output_channels)
+        square_sound = AdikSound.square_wave(freq=220, dur=4, amp=0.1, sample_rate=sample_rate, num_channels=num_output_channels, duty_cycle=0.6)
+        noise_sound = AdikSound.white_noise(dur=4, amp=0.1, sample_rate=sample_rate, num_channels=num_output_channels)
+
+        # -----------------------------------------------------------
+        # I. Création du Pattern A : La section principale du morceau (Index 0)
+        # -----------------------------------------------------------
+        pattern_a = player.add_pattern("Pattern A - Groove") # Index 0
+        player.select_pattern(0) 
+        
+        self.display_message(f"Création de '{pattern_a.name}' et ajout des pistes...", on_status_bar=True)
+
+        track_drums_a = pattern_a.add_track("Drums A")
+        track_bass_a = pattern_a.add_track("Basse A")
+        track_synth_a = pattern_a.add_track("Synthé A")
+
+        clip_drums_a = AdikClip("Drums Clip (Sine)", sine_sound)
+        clip_bass_a = AdikClip("Bass Clip (Square)", square_sound)
+        clip_synth_a = AdikClip("Synth Clip (Noise)", noise_sound)
+
+        track_drums_a.add_clip(clip_drums_a)
+        track_bass_a.add_clip(clip_bass_a)
+        track_synth_a.add_clip(clip_synth_a)
+
+        # -----------------------------------------------------------
+        # II. Création du Pattern B : L'Intro/Break plus simple (Index 1)
+        # -----------------------------------------------------------
+        pattern_b = player.add_pattern("Pattern B - Intro") # Index 1
+        player.select_pattern(1) 
+        
+        self.display_message(f"Création de '{pattern_b.name}' et ajout des pistes...", on_status_bar=True)
+        
+        track_drums_b = pattern_b.add_track("Drums B")
+        track_pad_b = pattern_b.add_track("Pad B") 
+
+        clip_drums_b = AdikClip("Drums Clip (Square)", square_sound) 
+        clip_pad_b = AdikClip("Pad Clip (Sine)", sine_sound)
+
+        track_drums_b.add_clip(clip_drums_b)
+        track_pad_b.add_clip(clip_pad_b)
+        track_pad_b.volume = 0.5
+
+        # -----------------------------------------------------------
+        # III. Création du Pattern C : Le Pattern basé sur Fichier Audio (Index 2)
+        # -----------------------------------------------------------
+        pattern_c = player.add_pattern("Pattern C - Funky Loop") # Index 2
+        player.select_pattern(2) 
+        
+        self.display_message(f"Création de '{pattern_c.name}' et ajout des pistes...", on_status_bar=True)
+        
+        track_loop_c = pattern_c.add_track("Funky Loop C")
+
+        file_name2 = "/home/com/audiotest/loops/funky.wav" 
+        loaded_clip_c = None
+
+        if os.path.exists(file_name2):
+            loaded_sound_c = AdikWaveHandler.load_wav(file_name2)
+            if loaded_sound_c:
+                loaded_clip_c = AdikClip("Funky Loop Clip", loaded_sound_c)
+                track_loop_c.add_clip(loaded_clip_c)
+                track_loop_c.volume = 0.8
+                self.display_message(f"Piste 'Funky Loop' chargée dans Pattern C.", on_status_bar=True)
+            else:
+                print(f"Erreur: Impossible de charger '{file_name2}'.")
+        else:
+            print(f"Avertissement: Le fichier '{file_name2}' n'existe pas. Piste Loop ignorée.")
+            # Si le fichier n'existe pas, on peut ajouter un bruit de secours
+            track_loop_c.add_clip(AdikClip("Fallback Noise", noise_sound))
+
+        # --- Chargement de Rhodes (complément du Pattern A) ---
+        file_name1 = "/home/com/audiotest/rhodes.wav" 
+        if os.path.exists(file_name1):
+            loaded_sound = AdikWaveHandler.load_wav(file_name1)
+            if loaded_sound:
+                loaded_clip = AdikClip("Rhodes Clip", loaded_sound)
+                
+                # Ajout de la piste de Rhodes au Pattern A (Index 0)
+                player.select_pattern(0) 
+                track_rhodes_a = player.add_track("Rhodes A")
+                track_rhodes_a.add_clip(loaded_clip)
+                track_rhodes_a.volume = 0.2
+                self.display_message(f"Piste 'Rhodes' chargée dans Pattern A.", on_status_bar=True)
+            # ... (gestion des erreurs file_name1) ...
+        else:
+            print(f"Avertissement: Le fichier '{file_name1}' n'existe pas. Piste Rhodes ignorée.")
+            
+        # -----------------------------------------------------------
+        # IV. Configuration de l'Arrangement (AdikSong)
+        # -----------------------------------------------------------
+        
+        # 1. Jouer Pattern A (Index 0) 2 fois
+        player.song.add_entry(pattern_index=0, repetitions=2)
+        
+        # 2. Jouer Pattern B (Index 1) 1 fois
+        player.song.add_entry(pattern_index=1, repetitions=1)
+        
+        # 3. Jouer Pattern C (Index 2) 2 fois
+        player.song.add_entry(pattern_index=2, repetitions=2)
+        
+        # 4. Retourner au Pattern A (Index 0) 1 fois (pour finir)
+        player.song.add_entry(pattern_index=0, repetitions=1)
+
+        # -----------------------------------------------------------
+        # V. Finalisation et Démarrage
+        # -----------------------------------------------------------
+
+        # Sélectionner le Pattern du début du Song pour la lecture (Pattern A, Index 0)
+        player.select_pattern(0) 
+        
+        # Basculer en mode SONG pour lire l'arrangement
+        # On suppose que PlaybackMode est importé ou accessible via le Player
+        # from adik_player import PlaybackMode
+        player.playback_mode = PlaybackMode.SONG
+        
+        # Réinitialiser la position de lecture au début du Song
+        player.current_playback_frame = 0
+        player.transport._playing = False # S'assurer que le transport est prêt à démarrer
+
+        # Mise à jour des caches de durée
+        player._update_params()
+        
+        # Démarrer le moteur audio
+        player._start_engine()
+        
+        self.display_message(f"Démonstration chargée en MODE SONG. Début : {player.song}.", on_status_bar=False)
+
+    #----------------------------------------    
+    # '''
+
+    '''
     def load_demo(self):
         """ Charger une nouvelle démonstration avec des Patterns et des Pistes. """
         sample_rate = 44100
@@ -617,6 +769,7 @@ class AdikApp(object):
         # --- Chargement d'un fichier audio et ajout à un Pattern ---
 
         file_name1 = "/home/com/audiotest/rhodes.wav" 
+        file_name2 = "/home/com/audiotest/loops/funky.wav" 
         if os.path.exists(file_name1):
             loaded_sound = AdikWaveHandler.load_wav(file_name1)
             if loaded_sound:
@@ -649,6 +802,7 @@ class AdikApp(object):
         self.display_message("Démonstration chargée. Pattern A (Groove) est actif.", on_status_bar=True)
 
     #----------------------------------------    
+    '''
 
 #========================================
 

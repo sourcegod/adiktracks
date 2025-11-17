@@ -280,22 +280,59 @@ class AdikAudioEngine:
                         track.get_audio_block(num_frames)
                 
 
-                    """
-                    if should_mix_track:
-                        if track.audio_sound and track.audio_sound.length_frames > 0:
-                            try:
-                                track.mix_sound_data(output_buffer, num_frames)
-                            except Exception as e:
-                                print(f"Erreur lors de l'appel de mix_sound_data pour la piste {track.name}: {e}")
-                        else:
-                            track.get_audio_block(num_frames)
-                    
-                    else: # not should_mix_track
-                        # Même si on ne mixe pas (mute/solo/record), on doit avancer la position de la piste
-                        # pour maintenir la synchronisation.
-                        track.get_audio_block(num_frames)
-                    """
+           
+            # ----------------------------------------------------
+            # 5. Gestion Avancée du Transport et du Bouclage/Arrangement
+            # ----------------------------------------------------
+            
+            # Déterminer la prochaine position de lecture en fonction du PlaybackMode (Pattern ou Song)
+            # Cette méthode DOIT déjà intégrer l'incrémentation de num_frames
+            next_player_frame = self._transport.get_next_playback_frame(
+                self._player.current_playback_frame, 
+                num_frames
+            )
+            
+            # --- Cas d'ARRÊT (Fin de Song, pas de boucle) ---
+            if next_player_frame == -1:
+                print("Player: Fin du morceau/Arrangement atteint. Arrêt automatique.")
+                self._transport.stop() 
+                return [] 
+
+            # --- Cas de SAUT/BOUCLE ou CHANGEMENT DE PATTERN ---
+            # Le saut se produit si la nouvelle frame est inférieure à la frame attendue (current + num_frames)
+            # ou si elle est exactement la même (cas du changement de pattern qui remet à zéro la position relative)
+            
+            # Calcul de la frame attendue sans saut
+            expected_frame = self._player.current_playback_frame + num_frames
+
+            if next_player_frame < expected_frame: 
+                # C'est un saut (boucle, retour au début du pattern/song, ou un changement de pattern)
                 
+                # Note : Si la logique de changement de pattern est dans transport.get_next_playback_frame, 
+                # elle doit également appeler self._player.select_pattern(new_index) !
+
+                print(f"Player: Saut/Boucle/Arrangement vers la frame {next_player_frame}.")
+                
+                # Mettre à jour la position globale du Player
+                self._player.current_playback_frame = next_player_frame
+                
+                # Synchroniser le métronome
+                self._metronome.playback_frame = next_player_frame
+                
+                # Synchroniser la position de chaque piste (important pour les clips)
+                for track in self._player.track_list:
+                    # La position de lecture de la piste est réinitialisée au début du nouveau segment.
+                    track.playback_position = next_player_frame
+                    
+            else:
+                # Lecture normale : avancer la position du player
+                self._player.current_playback_frame = next_player_frame
+            
+            # Mise à jour du temps mis en cache
+            self._player.current_time_seconds_cached = self._player.current_playback_frame / self.sample_rate
+
+            
+            """
             # ----------------------------------------------------
             # 5. Gestion Avancée du Transport et du Bouclage
             # ----------------------------------------------------
@@ -357,6 +394,7 @@ class AdikAudioEngine:
                     if all_tracks_finished and not self._transport._recording:
                         print("Player: Toutes les pistes ont fini de jouer. Arrêt automatique.")
                         self._transport._playing = False
+            """
 
             # 6. Mixage du son du métronome (si un clic est en cours)
             if self._metronome.is_click_playing():
