@@ -214,64 +214,6 @@ class AdikTransport:
 
     #----------------------------------------
 
-    '''
-    def get_next_playback_frame(self, current_frame, block_size):
-        """
-        Détermine la prochaine position de lecture en tenant compte du PlaybackMode,
-        de la boucle (si active), et de la fin du Song/Pattern.
-        Cette méthode sera appelée par AdikAudioEngine.
-        """
-        # Note: L'incrémentation de base est gérée dans l'Engine, ici on gère le saut/retour au début
-        
-        next_frame = current_frame + block_size
-        
-        # 1. Vérification de la Boucle (prioritaire)
-        if self.player.is_looping():
-            # La logique de boucle (AdikLoop) doit prendre le dessus
-            left = self.player.loop_manager.get_loop_start_frame()
-            right = self.player.loop_manager.get_loop_end_frame()
-            
-            if right > left and next_frame >= right:
-                # Revenir au début de la boucle
-                return left
-        
-        # Note: Si PlaybackMode est défini dans AdikPlayer (Player.PlaybackMode)
-        from adik_player import PlaybackMode 
-
-        # 2. Vérification de la Fin de Lecture
-        if self.player.playback_mode == PlaybackMode.SONG:
-            # Mode Song: La durée totale est la durée du Song
-            max_frames = self.player.song.total_duration_frames
-            
-            if max_frames > 0 and next_frame >= max_frames:
-                # Fin du Song. S'arrêter.
-                # L'Engine doit savoir que le flux doit être arrêté. 
-                # On retourne -1 ou une valeur spéciale pour indiquer l'arrêt
-                return -1 # L'AudioEngine devra interpréter -1 comme un signal d'arrêt
-                
-        elif self.player.playback_mode == PlaybackMode.PATTERN:
-            # Mode Pattern: Le Pattern actif est en boucle.
-            current_pattern = self.player.get_current_pattern()
-            if current_pattern:
-                # La durée du Pattern est la limite de la boucle
-                max_frames = self.player.bar_to_frame(current_pattern.length_bars)
-                
-                if max_frames > 0 and next_frame >= max_frames:
-                    # Revenir au début du Pattern (Frame 0 du Player dans ce contexte)
-                    return 0
-        
-        # 3. Mode standard (si la fin du projet est atteinte sans mode Song/Pattern défini)
-        max_duration = self.player.total_duration_frames
-        if max_duration > 0 and next_frame >= max_duration:
-            # S'il n'y a pas de Song/Pattern mode actif pour boucler, on arrête à la fin du projet
-            return -1 # Signal d'arrêt
-
-        return next_frame
-
-    #----------------------------------------
-    '''
-
-
     def start_recording(self):
         """
         Démarre l'enregistrement audio.

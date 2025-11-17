@@ -61,6 +61,8 @@ class AdikSong:
         self.player = player
         self.event_list: List[SongEntry] = []
         self.current_entry_index = 0        
+
+    #----------------------------------------
     
 
     # --- Propriétés de Durée ---
@@ -76,6 +78,8 @@ class AdikSong:
         last_entry = self.event_list[-1] # Les entrées sont ajoutées de manière séquentielle
         return last_entry.end_bar if last_entry else 0
 
+    #----------------------------------------
+
     @property
     def total_duration_frames(self) -> int:
         """
@@ -84,6 +88,8 @@ class AdikSong:
         # Nécessite l'accès à la conversion bar_to_frame du Player/Metronome
         return self.player.bar_to_frame(self.total_bars)
 
+    #----------------------------------------
+
     # --- Méthodes de Gestion de l'Arrangement ---
     def get_current_entry(self) -> Optional[SongEntry]:
         """ Retourne le SongEntry en cours de lecture. """
@@ -91,7 +97,8 @@ class AdikSong:
             return self.event_list[self.current_entry_index]
         return None
 
-    
+    #----------------------------------------
+
     def add_entry(self, pattern_index: int, repetitions: int = 1):
         """
         Ajoute un Pattern à la fin de la séquence d'événements du Song.
@@ -126,6 +133,8 @@ class AdikSong:
         print(f"Song: Pattern {pattern_index} ajouté {repetitions} fois (Durée: {new_entry.total_bars} bars). Début à la mesure {start_bar}.")
         return new_entry
 
+    #----------------------------------------
+
     def get_entry_at_bar(self, current_bar: int) -> Optional[SongEntry]:
         """
         Retourne le SongEntry (et donc le Pattern à jouer) actif à une mesure donnée.
@@ -135,6 +144,8 @@ class AdikSong:
             if entry.start_bar <= current_bar < entry.end_bar:
                 return entry
         return None
+
+    #----------------------------------------
         
     def get_pattern_and_repetition_info(self, current_bar: int) -> Optional[tuple[int, int]]:
         """
@@ -158,6 +169,8 @@ class AdikSong:
         
         return entry.pattern_index, repetition_number
 
+    #----------------------------------------
+
     def _recalculate_start_bars(self):
         """
         Utilitaire pour réinitialiser les start_bars après une modification (suppression ou insertion).
@@ -167,6 +180,8 @@ class AdikSong:
             entry.start_bar = current_bar
             current_bar += entry.bars
         print("Song réorganisé et start_bars recalculés.")
+
+    #----------------------------------------
         
     def try_move_to_next_pattern(self, player):
         """
@@ -217,10 +232,18 @@ class AdikSong:
             current_entry.repetitions_done = 0 
             return None # Signal d'arrêt
 
+    #----------------------------------------
+
     def __len__(self):
         return len(self.event_list)
+
+    #----------------------------------------
 
     def __str__(self):
         return (f"AdikSong(Événements: {len(self)}, "
                 f"Durée Totale: {self.total_bars} bars)")
+
+    #----------------------------------------
+
+#========================================
 
