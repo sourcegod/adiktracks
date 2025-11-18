@@ -7,17 +7,17 @@ import uuid
 # --- Classe Interne : SongEntry (L'événement d'arrangement) ---
 class SongEntry:
     """
-    Représente une entrée dans l'arrangement : quel pattern jouer, combien de fois.
+    Représente une entrée dans l'arrangement : quel pattern jouer, pour une SEULE lecture.
     """
-    def __init__(self, pattern_index: int, repetitions: int, pattern_length_bars: int, start_bar: int):
+    # --------------------------------------------------------------------------
+    
+    def __init__(self, pattern_index: int, pattern_length_bars: int, start_bar: int):
         """
         :param pattern_index: L'indice (index) du AdikPattern à jouer.
-        :param repetitions: Le nombre de fois que le pattern doit être répété.
         :param pattern_length_bars: La durée en mesures du pattern de base (obtenue via le Player).
         :param start_bar: La mesure (bar) de début sur la Timeline globale du Song.
         """
         self.pattern_index = pattern_index
-        self.repetitions = max(1, repetitions) # S'assurer d'au moins 1 répétition
         self.pattern_length_bars = max(1, pattern_length_bars) # Durée du pattern de base
         self.start_bar = start_bar
         self._id = str(uuid.uuid4())
@@ -26,7 +26,8 @@ class SongEntry:
 
     @property
     def total_bars(self) -> int:
-        """La durée totale de cet événement d'arrangement en mesures (calculée)."""
+        """La durée totale de cet événement d'arrangement en mesures (correspond à la durée du Pattern)."""
+        # Simplifié : la durée est celle du pattern de base, car il est joué 1 seule fois
         return self.pattern_length_bars
 
     #--------------------------------------------------------------------------
@@ -39,12 +40,11 @@ class SongEntry:
     #--------------------------------------------------------------------------
 
     def __str__(self):
-        return (f"SongEntry(PatternIdx={self.pattern_index}, Repetitions={self.repetitions}, "
+        return (f"SongEntry(PatternIdx={self.pattern_index}, "
                 f"StartBar={self.start_bar}, TotalBars={self.total_bars})")
 
     #--------------------------------------------------------------------------
 
-#--------------------------------------------------------------------------
 #========================================
 
 # --- Classe Principale : AdikSong (Le Mode Song/Arrangement) ---
@@ -128,7 +128,6 @@ class AdikSong:
             # Création d'une nouvelle entrée représentant UNE SEULE lecture du pattern
             new_entry = SongEntry(
                 pattern_index=pattern_index,
-                repetitions=1, # <--- TOUJOURS 1 MAINTENANT
                 pattern_length_bars=pattern_length_bars,
                 start_bar=start_bar
                 # La variable repetitions_done n'est plus utile ici
